@@ -6,3 +6,5 @@
 /.vs/FlowDuo.slnx
 /x64/Debug
 *.log,append
+/enc_temp_folder/65268e5b73978a35b075726419644ad/Graphics.cpp
+/LibCubeRenderer/include
