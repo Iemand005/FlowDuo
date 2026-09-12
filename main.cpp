@@ -14,10 +14,23 @@ static bool g_graphicsReady = false;
 static ComPtr<IDXGIOutputDuplication> g_duplication;
 static ComPtr<ID3D11Texture2D> g_desktopTexture;
 static ComPtr<ID3D11ShaderResourceView> g_desktopSRV;
-static ComPtr<ID3D11VertexShader> g_fullscreenVS;
-static ComPtr<ID3D11PixelShader> g_fullscreenPS;
+
+static ComPtr<ID3D11VertexShader> g_quadVS;
+static ComPtr<ID3D11PixelShader> g_quadPS;
+static ComPtr<ID3D11InputLayout> g_quadLayout;
+static ComPtr<ID3D11Buffer> g_quadVB;
+static ComPtr<ID3D11Buffer> g_quadIB;
+static ComPtr<ID3D11Buffer> g_transformCB;
 static ComPtr<ID3D11SamplerState> g_captureSampler;
 static ComPtr<ID3D11RasterizerState> g_captureRaster;
+
+static XMMATRIX g_quadTransform;
+
+struct QuadVertex
+{
+    float x, y, z;
+    float u, v;
+};
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -92,36 +105,71 @@ static ComPtr<ID3DBlob> CompileShader(const char* source, const char* target)
     return blob;
 }
 
-static bool CreateCapturePipeline(ID3D11Device* device)
+static bool CreateQuadPipeline(ID3D11Device* device)
 {
     try
     {
         const char* vsSrc =
+            "cbuffer TransformCB : register(b0) { float4x4 transform; };\n"
+            "struct VSIn { float3 pos : POSITION; float2 uv : TEXCOORD0; };\n"
             "struct VSOut { float4 pos : SV_POSITION; float2 uv : TEXCOORD0; };\n"
-            "VSOut main(uint vid : SV_VertexID)\n"
+            "VSOut main(VSIn i)\n"
             "{\n"
             "    VSOut o;\n"
-            "    float2 px = float2((vid << 1) & 2, vid & 2);\n"
-            "    o.pos = float4(px * 2.0 - 1.0, 0.0, 1.0);\n"
-            "    o.uv = float2(px.x * 0.5, 1.0 - px.y * 0.5);\n"
+            "    o.pos = mul(float4(i.pos, 1.0), transform);\n"
+            "    o.uv = i.uv;\n"
             "    return o;\n"
             "}\n";
 
         const char* psSrc =
-            "Texture2D desktop : register(t0);\n"
+            "Texture2D desktopTex : register(t0);\n"
             "SamplerState samp : register(s0);\n"
             "struct VSOut { float4 pos : SV_POSITION; float2 uv : TEXCOORD0; };\n"
             "float4 main(VSOut i) : SV_TARGET\n"
             "{\n"
-            "    float4 c = desktop.Sample(samp, i.uv);\n"
+            "    float4 c = desktopTex.Sample(samp, i.uv);\n"
             "    return float4(c.b, c.g, c.r, 1.0);\n"
             "}\n";
 
         auto vsBlob = CompileShader(vsSrc, "vs_5_0");
         auto psBlob = CompileShader(psSrc, "ps_5_0");
 
-        CheckHr(device->CreateVertexShader(vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), nullptr, &g_fullscreenVS));
-        CheckHr(device->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(), nullptr, &g_fullscreenPS));
+        CheckHr(device->CreateVertexShader(vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), nullptr, &g_quadVS));
+        CheckHr(device->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(), nullptr, &g_quadPS));
+
+        D3D11_INPUT_ELEMENT_DESC layout[] = {
+            { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+            { "TEXCOORD0", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        };
+        CheckHr(device->CreateInputLayout(layout, 2, vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), &g_quadLayout));
+
+        QuadVertex verts[] = {
+            { -1.0f, -1.0f, 0.0f, 0.0f, 1.0f },
+            {  1.0f, -1.0f, 0.0f, 1.0f, 1.0f },
+            {  1.0f,  1.0f, 0.0f, 1.0f, 0.0f },
+            { -1.0f,  1.0f, 0.0f, 0.0f, 0.0f },
+        };
+        const USHORT indices[] = { 0, 1, 2, 0, 2, 3 };
+
+        D3D11_BUFFER_DESC vbDesc = {};
+        vbDesc.ByteWidth = sizeof(verts);
+        vbDesc.Usage = D3D11_USAGE_DEFAULT;
+        vbDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+        D3D11_SUBRESOURCE_DATA vbData = { verts, 0, 0 };
+        CheckHr(device->CreateBuffer(&vbDesc, &vbData, &g_quadVB));
+
+        D3D11_BUFFER_DESC ibDesc = {};
+        ibDesc.ByteWidth = sizeof(indices);
+        ibDesc.Usage = D3D11_USAGE_DEFAULT;
+        ibDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+        D3D11_SUBRESOURCE_DATA ibData = { indices, 0, 0 };
+        CheckHr(device->CreateBuffer(&ibDesc, &ibData, &g_quadIB));
+
+        D3D11_BUFFER_DESC cbDesc = {};
+        cbDesc.ByteWidth = sizeof(XMMATRIX);
+        cbDesc.Usage = D3D11_USAGE_DEFAULT;
+        cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+        CheckHr(device->CreateBuffer(&cbDesc, nullptr, &g_transformCB));
 
         D3D11_SAMPLER_DESC sampDesc = {};
         sampDesc.Filter = D3D11_FILTER_MIN_MAG_LINEAR_MIP_POINT;
@@ -143,29 +191,31 @@ static bool CreateCapturePipeline(ID3D11Device* device)
     }
 }
 
-static void InitDesktopCapture(ID3D11Device* device)
+static bool InitDesktopCapture(ID3D11Device* device)
 {
     ComPtr<IDXGIDevice> dxgiDevice;
     if (FAILED(device->QueryInterface(IID_PPV_ARGS(&dxgiDevice))))
-        return;
+        return false;
 
     ComPtr<IDXGIAdapter> adapter;
     if (FAILED(dxgiDevice->GetAdapter(&adapter)))
-        return;
+        return false;
 
     ComPtr<IDXGIOutput> output;
     if (FAILED(adapter->EnumOutputs(0, &output)))
-        return;
+        return false;
 
     ComPtr<IDXGIOutput1> output1;
     if (FAILED(output->QueryInterface(IID_PPV_ARGS(&output1))))
-        return;
+        return false;
 
     if (FAILED(output1->DuplicateOutput(device, &g_duplication)))
-        g_duplication.Reset();
+        return false;
+
+    return g_duplication != nullptr;
 }
 
-static void UpdateDesktopFrame(ID3D11Device* device, ID3D11DeviceContext* context)
+static bool UpdateDesktopFrame(ID3D11Device* device, ID3D11DeviceContext* context, HWND hwnd)
 {
     DXGI_OUTDUPL_FRAME_INFO frameInfo = {};
     ComPtr<IDXGIResource> resource;
@@ -175,12 +225,16 @@ static void UpdateDesktopFrame(ID3D11Device* device, ID3D11DeviceContext* contex
     {
         g_duplication.Reset();
         InitDesktopCapture(device);
-        return;
+        return g_desktopSRV != nullptr;
     }
+    if (hr == DXGI_ERROR_WAIT_TIMEOUT || hr == DXGI_ERROR_NOT_CURRENTLY_AVAILABLE)
+        return g_desktopSRV != nullptr;
     if (FAILED(hr))
-        return;
+        return g_desktopSRV != nullptr;
 
-    if (frameInfo.LastPresentTime.QuadPart != 0 && resource)
+    bool updated = g_desktopSRV != nullptr;
+
+    if (resource)
     {
         ComPtr<ID3D11Texture2D> desktopImage;
         if (SUCCEEDED(resource->QueryInterface(IID_PPV_ARGS(&desktopImage))))
@@ -209,20 +263,27 @@ static void UpdateDesktopFrame(ID3D11Device* device, ID3D11DeviceContext* contex
                     g_desktopSRV.Reset();
                     g_desktopTexture.Reset();
                 }
+                else
+                {
+                    std::wstring title = L"FlowDuo - Desktop " +
+                        std::to_wstring(desc.Width) + L"x" + std::to_wstring(desc.Height);
+                    SetWindowTextW(hwnd, title.c_str());
+                }
             }
 
             if (g_desktopTexture)
             {
                 context->CopyResource(g_desktopTexture.Get(), desktopImage.Get());
-                context->Flush();
+                updated = true;
             }
         }
     }
 
     g_duplication->ReleaseFrame();
+    return updated;
 }
 
-static void PresentDesktop(ID3D11Device* device, ID3D11DeviceContext* context, IDXGISwapChain* swapChain)
+static void PresentQuad(ID3D11Device* device, ID3D11DeviceContext* context, IDXGISwapChain* swapChain)
 {
     ComPtr<ID3D11Texture2D> backBuffer;
     if (FAILED(swapChain->GetBuffer(0, IID_PPV_ARGS(&backBuffer))))
@@ -235,25 +296,34 @@ static void PresentDesktop(ID3D11Device* device, ID3D11DeviceContext* context, I
     if (FAILED(device->CreateRenderTargetView(backBuffer.Get(), nullptr, &rtv)))
         return;
 
-    D3D11_VIEWPORT viewport = { 0, 0, (float)bbDesc.Width, (float)bbDesc.Height, 0.0f, 1.0f };
-
+    const float clearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
     context->OMSetRenderTargets(1, rtv.GetAddressOf(), nullptr);
+    context->ClearRenderTargetView(rtv.Get(), clearColor);
+
+    D3D11_VIEWPORT viewport = { 0, 0, (float)bbDesc.Width, (float)bbDesc.Height, 0.0f, 1.0f };
     context->RSSetViewports(1, &viewport);
     context->RSSetState(g_captureRaster.Get());
+
     context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    context->IASetInputLayout(nullptr);
-    UINT stride = 0, offset = 0;
-    context->IASetVertexBuffers(0, 0, nullptr, &stride, &offset);
-    context->IASetIndexBuffer(nullptr, DXGI_FORMAT_R16_UINT, 0);
-    context->VSSetShader(g_fullscreenVS.Get(), nullptr, 0);
-    context->PSSetShader(g_fullscreenPS.Get(), nullptr, 0);
+    context->IASetInputLayout(g_quadLayout.Get());
+    UINT stride = sizeof(QuadVertex);
+    UINT offset = 0;
+    ID3D11Buffer* vb = g_quadVB.Get();
+    context->IASetVertexBuffers(0, 1, &vb, &stride, &offset);
+    context->IASetIndexBuffer(g_quadIB.Get(), DXGI_FORMAT_R16_UINT, 0);
+
+    XMMATRIX transform = XMMatrixTranspose(g_quadTransform);
+    context->UpdateSubresource(g_transformCB.Get(), 0, nullptr, &transform, 0, 0);
+    context->VSSetConstantBuffers(0, 1, g_transformCB.GetAddressOf());
+
+    context->VSSetShader(g_quadVS.Get(), nullptr, 0);
+    context->PSSetShader(g_quadPS.Get(), nullptr, 0);
     context->PSSetSamplers(0, 1, g_captureSampler.GetAddressOf());
 
     if (g_desktopSRV)
     {
-        ID3D11ShaderResourceView* srv = g_desktopSRV.Get();
-        context->PSSetShaderResources(0, 1, &srv);
-        context->Draw(3, 0);
+        context->PSSetShaderResources(0, 1, g_desktopSRV.GetAddressOf());
+        context->DrawIndexed(6, 0, 0);
     }
 
     swapChain->Present(1, 0);
@@ -287,15 +357,19 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nShowCmd)
 
     g_graphicsReady = true;
 
-    bool mirror = CreateCapturePipeline(g_graphics.GetDevice());
-    InitDesktopCapture(g_graphics.GetDevice());
-    mirror = mirror && g_duplication != nullptr;
-
     ID3D11Device* device = g_graphics.GetDevice();
     ID3D11DeviceContext* context = g_graphics.GetContext();
     IDXGISwapChain* swapChain = g_graphics.GetSwapChain();
 
+    bool mirror = CreateQuadPipeline(device);
+    if (mirror)
+        mirror = InitDesktopCapture(device);
+
+    if (mirror)
+        g_quadTransform = XMMatrixIdentity();
+
     float angle = 0.0f;
+    int framesWithoutFrame = 0;
     for (;;)
     {
         MSG msg;
@@ -309,8 +383,18 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nShowCmd)
 
         if (mirror)
         {
-            UpdateDesktopFrame(device, context);
-            PresentDesktop(device, context, swapChain);
+            if (UpdateDesktopFrame(device, context, hwnd))
+                framesWithoutFrame = 0;
+            else
+                ++framesWithoutFrame;
+
+            PresentQuad(device, context, swapChain);
+
+            if (framesWithoutFrame > 120)
+            {
+                mirror = false;
+                SetWindowTextW(hwnd, L"FlowDuo - Cube fallback");
+            }
         }
         else
         {
