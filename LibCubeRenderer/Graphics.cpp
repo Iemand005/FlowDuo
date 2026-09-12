@@ -448,7 +448,7 @@ namespace CubeRenderer {
 		//RenderTargetView.c(); reset this one
 		if (width == 0 || height == 0) return;
 
-fu		context->OMSetRenderTargets(0, NULL, NULL);
+		context->OMSetRenderTargets(0, NULL, NULL);
 		renderTargetView.Reset();
 		depthStencilView.Reset();
 		
@@ -578,6 +578,10 @@ fu		context->OMSetRenderTargets(0, NULL, NULL);
 
 	ID3D11Device* Graphics::GetDevice() {
 		return device.Get();
+	}
+
+	ID3D11DeviceContext* Graphics::GetContext() {
+		return context.Get();
 	}
 
 	int prevX, prevY;
