@@ -19,6 +19,7 @@ static float g_tiltDeg = 55.0f;
 
 static HingeSensorReader g_hingeReader;
 static float g_hingeSmooth = 55.0f;
+static float g_calibOffset = 0.0f;
 static DWORD g_lastHingeRead = 0;
 
 static ComPtr<IDXGIOutputDuplication> g_duplication;
@@ -67,6 +68,15 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     case WM_SIZE:
         if (g_graphicsReady)
             g_graphics.Resize(hwnd);
+        return 0;
+    case WM_KEYDOWN:
+        if (wParam == VK_SPACE && g_hingeReader.IsReady())
+        {
+            g_calibOffset = g_hingeSmooth - 90.0f;
+            WCHAR buf[64] = {};
+            wsprintfW(buf, L"FlowDuo - hinge %.0f deg (space=calibrate)", g_hingeSmooth);
+            SetWindowTextW(hwnd, buf);
+        }
         return 0;
     case WM_DESTROY:
         PostQuitMessage(0);
@@ -221,7 +231,7 @@ static void UpdateTiltFromHinge()
         return;
 
     g_hingeSmooth += 0.15f * ((float)hinge - g_hingeSmooth);
-    g_tiltDeg = g_hingeSmooth - 90.0f;
+    g_tiltDeg = g_hingeSmooth - 90.0f - g_calibOffset;
 
     SendMessageW(g_tiltSlider, TBM_SETPOS, TRUE, (LPARAM)(int)g_tiltDeg);
 }
