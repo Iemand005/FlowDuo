@@ -5,13 +5,15 @@
 using namespace CubeRenderer;
 
 static Graphics g_graphics;
+static bool g_graphicsReady = false;
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     switch (msg)
     {
     case WM_SIZE:
-        g_graphics.Resize(hwnd);
+        if (g_graphicsReady)
+            g_graphics.Resize(hwnd);
         return 0;
     case WM_DESTROY:
         PostQuitMessage(0);
@@ -82,6 +84,8 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nShowCmd)
     scene->SetTexture(texture);
     scene->AddCube(16.0f, 16.0f, 16.0f, 0, 0, 0, 0, 0, texture);
     g_graphics.UpdateScene();
+
+    g_graphicsReady = true;
 
     float angle = 0.0f;
     for (;;)
