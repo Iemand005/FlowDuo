@@ -140,7 +140,7 @@ static void CreateQuadPipeline(ID3D11Device* device)
         "    int halfK = min(64, (int)(sigma * 2.5 + 0.5));\n"
         "    float wsum = 0.0;\n"
         "    float4 c = 0.0;\n"
-        "    [loopd]\n"
+        "    [loop]\n"
         "    for (int k = -halfK; k <= halfK; ++k)\n"
         "    {\n"
         "        float w = exp(-((float)k * (float)k) / (2.0 * sigma * sigma));\n"
