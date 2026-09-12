@@ -421,7 +421,6 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nShowCmd)
 
     float angle = 0.0f;
     int framesWithoutFrame = 0;
-    int framesRun = 0;
     for (;;)
     {
         MSG msg;
@@ -436,12 +435,6 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nShowCmd)
             DispatchMessageW(&msg);
         }
 
-        if ((framesRun++ % 30) == 0)
-        {
-            LogState("frame#%d mirror=%d fwf=%d dup=%d srv=%d", framesRun, (int)mirror,
-                     framesWithoutFrame, (int)(g_duplication != nullptr), (int)(g_desktopSRV != nullptr));
-        }
-
         if (mirror)
         {
             if (UpdateDesktopFrame(device, context, hwnd))
@@ -450,8 +443,6 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nShowCmd)
                 ++framesWithoutFrame;
 
             PresentQuad(device, context, swapChain);
-
-            DumpDebugMessages();
 
             if (framesWithoutFrame > 120)
             {
