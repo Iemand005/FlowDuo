@@ -1,67 +1,19 @@
-CreateQuadPipeline=0
-InitDesktopCapture=0 mirror=0
-frame#1 mirror=0 fwf=0 dup=0 srv=0
-frame#31 mirror=0 fwf=0 dup=0 srv=0
-frame#61 mirror=0 fwf=0 dup=0 srv=0
-frame#91 mirror=0 fwf=0 dup=0 srv=0
-frame#121 mirror=0 fwf=0 dup=0 srv=0
-frame#151 mirror=0 fwf=0 dup=0 srv=0
-frame#181 mirror=0 fwf=0 dup=0 srv=0
-frame#211 mirror=0 fwf=0 dup=0 srv=0
-frame#241 mirror=0 fwf=0 dup=0 srv=0
-frame#271 mirror=0 fwf=0 dup=0 srv=0
-frame#301 mirror=0 fwf=0 dup=0 srv=0
-frame#331 mirror=0 fwf=0 dup=0 srv=0
-frame#361 mirror=0 fwf=0 dup=0 srv=0
-frame#391 mirror=0 fwf=0 dup=0 srv=0
-frame#421 mirror=0 fwf=0 dup=0 srv=0
-frame#451 mirror=0 fwf=0 dup=0 srv=0
-frame#481 mirror=0 fwf=0 dup=0 srv=0
-frame#511 mirror=0 fwf=0 dup=0 srv=0
-frame#541 mirror=0 fwf=0 dup=0 srv=0
-frame#571 mirror=0 fwf=0 dup=0 srv=0
-frame#601 mirror=0 fwf=0 dup=0 srv=0
-frame#631 mirror=0 fwf=0 dup=0 srv=0
-frame#661 mirror=0 fwf=0 dup=0 srv=0
-frame#691 mirror=0 fwf=0 dup=0 srv=0
-frame#721 mirror=0 fwf=0 dup=0 srv=0
-frame#751 mirror=0 fwf=0 dup=0 srv=0
-frame#781 mirror=0 fwf=0 dup=0 srv=0
-frame#811 mirror=0 fwf=0 dup=0 srv=0
-frame#841 mirror=0 fwf=0 dup=0 srv=0
-frame#871 mirror=0 fwf=0 dup=0 srv=0
-frame#901 mirror=0 fwf=0 dup=0 srv=0
-frame#931 mirror=0 fwf=0 dup=0 srv=0
-frame#961 mirror=0 fwf=0 dup=0 srv=0
-frame#991 mirror=0 fwf=0 dup=0 srv=0
-frame#1021 mirror=0 fwf=0 dup=0 srv=0
-frame#1051 mirror=0 fwf=0 dup=0 srv=0
-frame#1081 mirror=0 fwf=0 dup=0 srv=0
-frame#1111 mirror=0 fwf=0 dup=0 srv=0
-frame#1141 mirror=0 fwf=0 dup=0 srv=0
-frame#1171 mirror=0 fwf=0 dup=0 srv=0
-frame#1201 mirror=0 fwf=0 dup=0 srv=0
-frame#1231 mirror=0 fwf=0 dup=0 srv=0
-frame#1261 mirror=0 fwf=0 dup=0 srv=0
-frame#1291 mirror=0 fwf=0 dup=0 srv=0
-frame#1321 mirror=0 fwf=0 dup=0 srv=0
-frame#1351 mirror=0 fwf=0 dup=0 srv=0
-frame#1381 mirror=0 fwf=0 dup=0 srv=0
-frame#1411 mirror=0 fwf=0 dup=0 srv=0
-frame#1441 mirror=0 fwf=0 dup=0 srv=0
-frame#1471 mirror=0 fwf=0 dup=0 srv=0
-frame#1501 mirror=0 fwf=0 dup=0 srv=0
-frame#1531 mirror=0 fwf=0 dup=0 srv=0
-frame#1561 mirror=0 fwf=0 dup=0 srv=0
-frame#1591 mirror=0 fwf=0 dup=0 srv=0
-frame#1621 mirror=0 fwf=0 dup=0 srv=0
-frame#1651 mirror=0 fwf=0 dup=0 srv=0
-frame#1681 mirror=0 fwf=0 dup=0 srv=0
-frame#1711 mirror=0 fwf=0 dup=0 srv=0
-frame#1741 mirror=0 fwf=0 dup=0 srv=0
-frame#1771 mirror=0 fwf=0 dup=0 srv=0
-frame#1801 mirror=0 fwf=0 dup=0 srv=0
-frame#1831 mirror=0 fwf=0 dup=0 srv=0
-frame#1861 mirror=0 fwf=0 dup=0 srv=0
-frame#1891 mirror=0 fwf=0 dup=0 srv=0
-frame#1921 mirror=0 fwf=0 dup=0 srv=0
+CreateQuadPipeline=1
+InitDesktopCapture=1 mirror=1
+frame#1 mirror=1 fwf=0 dup=1 srv=0
+frame#31 mirror=1 fwf=0 dup=1 srv=1
+frame#61 mirror=1 fwf=0 dup=1 srv=1
+CreateQuadPipeline=1
+InitDesktopCapture=1 mirror=1
+frame#1 mirror=1 fwf=0 dup=1 srv=0
+frame#31 mirror=1 fwf=0 dup=1 srv=1
+frame#61 mirror=1 fwf=0 dup=1 srv=1
+frame#91 mirror=1 fwf=0 dup=1 srv=1
+frame#121 mirror=1 fwf=0 dup=1 srv=1
+frame#151 mirror=1 fwf=0 dup=1 srv=1
+frame#181 mirror=1 fwf=0 dup=1 srv=1
+frame#211 mirror=1 fwf=0 dup=1 srv=1
+frame#241 mirror=1 fwf=0 dup=1 srv=1
+CreateQuadPipeline=1
+InitDesktopCapture=1 mirror=1
+frame#1 mirror=1 fwf=0 dup=1 srv=0

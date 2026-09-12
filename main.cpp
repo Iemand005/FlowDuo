@@ -48,6 +48,20 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     return DefWindowProc(hwnd, msg, wParam, lParam);
 }
 
+static void LogState(const char* fmt, ...)
+{
+    FILE* f = nullptr;
+    fopen_s(&f, "J:\\FlowDuo\\flowduo.log", "a");
+    if (!f)
+        return;
+    va_list args;
+    va_start(args, fmt);
+    vfprintf(f, fmt, args);
+    va_end(args);
+    fputc('\n', f);
+    fclose(f);
+}
+
 static void CheckHr(HRESULT hr, const char* what)
 {
     if (FAILED(hr))
@@ -146,7 +160,7 @@ static bool CreateQuadPipeline(ID3D11Device* device)
 
         D3D11_INPUT_ELEMENT_DESC layout[] = {
             { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-            { "TEXCOORD0", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+            { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
         };
         CheckHr(device->CreateInputLayout(layout, 2, vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), &g_quadLayout), "CreateInputLayout");
 
@@ -176,40 +190,32 @@ static bool CreateQuadPipeline(ID3D11Device* device)
         cbDesc.ByteWidth = sizeof(XMMATRIX);
         cbDesc.Usage = D3D11_USAGE_DEFAULT;
         cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-        CheckHr(device->CreateBuffer(&cbDesc, nullptr, &g_transformCB));
+        CheckHr(device->CreateBuffer(&cbDesc, nullptr, &g_transformCB), "CreateCB");
 
         D3D11_SAMPLER_DESC sampDesc = {};
         sampDesc.Filter = D3D11_FILTER_MIN_MAG_LINEAR_MIP_POINT;
         sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
         sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
         sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
-        CheckHr(device->CreateSamplerState(&sampDesc, &g_captureSampler));
+        CheckHr(device->CreateSamplerState(&sampDesc, &g_captureSampler), "CreateSampler");
 
         D3D11_RASTERIZER_DESC rasterDesc = {};
         rasterDesc.FillMode = D3D11_FILL_SOLID;
         rasterDesc.CullMode = D3D11_CULL_NONE;
-        CheckHr(device->CreateRasterizerState(&rasterDesc, &g_captureRaster));
+        CheckHr(device->CreateRasterizerState(&rasterDesc, &g_captureRaster), "CreateRaster");
 
         return true;
     }
-    catch (...)
+    catch (const std::exception& e)
     {
+        LogState("CreateQuadPipeline EXCEPTION: %s", e.what());
         return false;
     }
-}
-
-static void LogState(const char* fmt, ...)
-{
-    FILE* f = nullptr;
-    fopen_s(&f, "J:\\FlowDuo\\flowduo.log", "a");
-    if (!f)
-        return;
-    va_list args;
-    va_start(args, fmt);
-    vfprintf(f, fmt, args);
-    va_end(args);
-    fputc('\n', f);
-    fclose(f);
+    catch (...)
+    {
+        LogState("CreateQuadPipeline EXCEPTION (unknown)");
+        return false;
+    }
 }
 
 static void DumpDebugMessages()
@@ -253,28 +259,50 @@ static bool InitDesktopCapture(ID3D11Device* device)
 {
     ComPtr<IDXGIDevice> dxgiDevice;
     if (FAILED(device->QueryInterface(IID_PPV_ARGS(&dxgiDevice))))
+    {
+        LogState("InitDesktopCapture: QI IDXGIDevice failed");
         return false;
+    }
 
     ComPtr<IDXGIAdapter> adapter;
     if (FAILED(dxgiDevice->GetAdapter(&adapter)))
+    {
+        LogState("InitDesktopCapture: GetAdapter failed");
         return false;
+    }
 
     ComPtr<IDXGIOutput> output;
     if (FAILED(adapter->EnumOutputs(0, &output)))
+    {
+        LogState("InitDesktopCapture: EnumOutputs(0) failed");
         return false;
+    }
 
     ComPtr<IDXGIOutput1> output1;
     if (FAILED(output->QueryInterface(IID_PPV_ARGS(&output1))))
+    {
+        LogState("InitDesktopCapture: QI IDXGIOutput1 failed");
         return false;
+    }
 
-    if (FAILED(output1->DuplicateOutput(device, &g_duplication)))
+    HRESULT hr = output1->DuplicateOutput(device, &g_duplication);
+    if (FAILED(hr))
+    {
+        LogState("InitDesktopCapture: DuplicateOutput hr=0x%08X", (unsigned)hr);
         return false;
+    }
 
     return g_duplication != nullptr;
 }
 
 static bool UpdateDesktopFrame(ID3D11Device* device, ID3D11DeviceContext* context, HWND hwnd)
 {
+    if (!g_duplication)
+    {
+        if (!InitDesktopCapture(device))
+            return g_desktopSRV != nullptr;
+    }
+
     DXGI_OUTDUPL_FRAME_INFO frameInfo = {};
     ComPtr<IDXGIResource> resource;
     HRESULT hr = g_duplication->AcquireNextFrame(16, &frameInfo, &resource);
