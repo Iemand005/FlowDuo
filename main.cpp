@@ -54,6 +54,7 @@ static float g_fadeStart = 0.2f;
 static float g_fadeEnd = 1.0f;
 static float g_fadeStrength = 1.0f;
 static float g_blurRadius = 6.0f;
+static float g_blurRadiusMin = 1.0f;
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -118,13 +119,14 @@ static void CreateQuadPipeline(ID3D11Device* device)
     const char* blurSrc =
         "Texture2D sceneTex : register(t0);\n"
         "SamplerState samp : register(s0);\n"
-        "cbuffer BlurCB : register(b1) { float4 blurParams; };\n"
+        "cbuffer BlurCB : register(b1)\n"
+        "{ float4 texelDir; float4 ranges; };\n"
         "struct VSOut { float4 pos : SV_POSITION; float2 uv : TEXCOORD0; };\n"
         "float4 main(VSOut i) : SV_TARGET\n"
         "{\n"
-        "    float2 texel = float2(blurParams.y, blurParams.z);\n"
-        "    float2 dir = lerp(float2(texel.x, 0.0), float2(0.0, texel.y), blurParams.w);\n"
-        "    float sigma = max(blurParams.x, 0.05);\n"
+        "    float2 texel = float2(texelDir.x, texelDir.y);\n"
+        "    float2 dir = lerp(float2(texel.x, 0.0), float2(0.0, texel.y), texelDir.z);\n"
+        "    float sigma = lerp(ranges.x, ranges.y, i.uv.y);\n"
         "    int halfK = min(64, (int)(sigma * 2.5 + 0.5));\n"
         "    float wsum = 0.0;\n"
         "    float4 c = 0.0;\n"
@@ -188,6 +190,7 @@ static void CreateQuadPipeline(ID3D11Device* device)
     desc.ByteWidth = 16;
     desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
     CheckHr(device->CreateBuffer(&desc, nullptr, &g_fadeCB));
+    desc.ByteWidth = 32;
     CheckHr(device->CreateBuffer(&desc, nullptr, &g_blurCB));
 
     D3D11_SAMPLER_DESC sampDesc = {};
@@ -405,8 +408,12 @@ static void PresentQuad(ID3D11Device* device, ID3D11DeviceContext* context, IDXG
     const float texelX = 1.0f / (float)g_sceneW;
     const float texelY = 1.0f / (float)g_sceneH;
 
-    const XMFLOAT4 blurH(g_blurRadius, texelX, texelY, 0.0f);
-    context->UpdateSubresource(g_blurCB.Get(), 0, nullptr, &blurH, 0, 0);
+    const XMFLOAT4 blurRanges(g_blurRadiusMin, g_blurRadius, 0.0f, 0.0f);
+
+    const XMFLOAT4 blurH(texelX, texelY, 0.0f, 0.0f);
+    const XMFLOAT4 blurH2 = blurRanges;
+    struct { XMFLOAT4 a; XMFLOAT4 b; } blurHB = { blurH, blurH2 };
+    context->UpdateSubresource(g_blurCB.Get(), 0, nullptr, &blurHB, 0, 0);
     context->PSSetConstantBuffers(1, 1, g_blurCB.GetAddressOf());
     ID3D11ShaderResourceView* sceneSRV = g_sceneSRV.Get();
     context->PSSetShaderResources(0, 1, &sceneSRV);
@@ -416,8 +423,9 @@ static void PresentQuad(ID3D11Device* device, ID3D11DeviceContext* context, IDXG
     context->OMSetRenderTargets(1, backRTV.GetAddressOf(), nullptr);
     context->ClearRenderTargetView(backRTV.Get(), clear);
 
-    const XMFLOAT4 blurV(g_blurRadius, texelX, texelY, 1.0f);
-    context->UpdateSubresource(g_blurCB.Get(), 0, nullptr, &blurV, 0, 0);
+    const XMFLOAT4 blurV(texelX, texelY, 1.0f, 0.0f);
+    struct { XMFLOAT4 a; XMFLOAT4 b; } blurVB = { blurV, blurRanges };
+    context->UpdateSubresource(g_blurCB.Get(), 0, nullptr, &blurVB, 0, 0);
     ID3D11ShaderResourceView* blurSRV = g_blurSRV.Get();
     context->PSSetShaderResources(0, 1, &blurSRV);
     context->DrawIndexed(6, 0, 0);
