@@ -44,6 +44,9 @@ static ComPtr<ID3D11Buffer> g_blurIB;
 static ComPtr<ID3D11Texture2D> g_sceneRT;
 static ComPtr<ID3D11RenderTargetView> g_sceneRTV;
 static ComPtr<ID3D11ShaderResourceView> g_sceneSRV;
+static ComPtr<ID3D11Texture2D> g_blurRT;
+static ComPtr<ID3D11RenderTargetView> g_blurRTV;
+static ComPtr<ID3D11ShaderResourceView> g_blurSRV;
 static UINT g_sceneW = 0;
 static UINT g_sceneH = 0;
 
@@ -119,19 +122,13 @@ static void CreateQuadPipeline(ID3D11Device* device)
         "struct VSOut { float4 pos : SV_POSITION; float2 uv : TEXCOORD0; };\n"
         "float4 main(VSOut i) : SV_TARGET\n"
         "{\n"
-        "    float2 d = float2(blurParams.y, blurParams.z) * blurParams.x;\n"
-        "    float4 c = 0;\n"
-        "    float wsum = 0;\n"
-        "    for (int y = -2; y <= 2; ++y)\n"
-        "    {\n"
-        "        for (int x = -2; x <= 2; ++x)\n"
-        "        {\n"
-        "            float w = exp(-(float)(x*x + y*y) * 0.35);\n"
-        "            c += sceneTex.Sample(samp, i.uv + float2((float)x * d.x, (float)y * d.y)) * w;\n"
-        "            wsum += w;\n"
-        "        }\n"
-        "    }\n"
-        "    return c / wsum;\n"
+        "    float2 texel = float2(blurParams.y, blurParams.z) * blurParams.x;\n"
+        "    float4 c = sceneTex.Sample(samp, i.uv) * 0.2270270270;\n"
+        "    c += sceneTex.Sample(samp, i.uv + lerp(float2( 1.3846153846 * texel.x, 0.0), float2(0.0,  1.3846153846 * texel.y), blurParams.w)) * 0.3162162162;\n"
+        "    c += sceneTex.Sample(samp, i.uv + lerp(float2(-1.3846153846 * texel.x, 0.0), float2(0.0, -1.3846153846 * texel.y), blurParams.w)) * 0.3162162162;\n"
+        "    c += sceneTex.Sample(samp, i.uv + lerp(float2( 3.2307692308 * texel.x, 0.0), float2(0.0,  3.2307692308 * texel.y), blurParams.w)) * 0.0702702703;\n"
+        "    c += sceneTex.Sample(samp, i.uv + lerp(float2(-3.2307692308 * texel.x, 0.0), float2(0.0, -3.2307692308 * texel.y), blurParams.w)) * 0.0702702703;\n"
+        "    return c;\n"
         "}\n";
 
     auto vsBlob = CompileShader(vsSrc, "vs_5_0");
@@ -301,6 +298,9 @@ static void EnsureSceneRT(ID3D11Device* device, UINT width, UINT height)
     g_sceneRT.Reset();
     g_sceneRTV.Reset();
     g_sceneSRV.Reset();
+    g_blurRT.Reset();
+    g_blurRTV.Reset();
+    g_blurSRV.Reset();
 
     D3D11_TEXTURE2D_DESC desc = {};
     desc.Width = width;
@@ -314,6 +314,10 @@ static void EnsureSceneRT(ID3D11Device* device, UINT width, UINT height)
     CheckHr(device->CreateTexture2D(&desc, nullptr, &g_sceneRT));
     CheckHr(device->CreateRenderTargetView(g_sceneRT.Get(), nullptr, &g_sceneRTV));
     CheckHr(device->CreateShaderResourceView(g_sceneRT.Get(), nullptr, &g_sceneSRV));
+
+    CheckHr(device->CreateTexture2D(&desc, nullptr, &g_blurRT));
+    CheckHr(device->CreateRenderTargetView(g_blurRT.Get(), nullptr, &g_blurRTV));
+    CheckHr(device->CreateShaderResourceView(g_blurRT.Get(), nullptr, &g_blurSRV));
 
     g_sceneW = width;
     g_sceneH = height;
@@ -382,24 +386,27 @@ static void PresentQuad(ID3D11Device* device, ID3D11DeviceContext* context, IDXG
         context->DrawIndexed(6, 0, 0);
     }
 
-    context->OMSetRenderTargets(1, backRTV.GetAddressOf(), nullptr);
-    context->ClearRenderTargetView(backRTV.Get(), clear);
-    context->PSSetShaderResources(0, 0, nullptr);
-
-    XMMATRIX identity = XMMatrixIdentity();
-    context->UpdateSubresource(g_transformCB.Get(), 0, nullptr, &identity, 0, 0);
-
-    vb = g_blurVB.Get();
-    context->IASetVertexBuffers(0, 1, &vb, &stride, &offset);
-    context->IASetIndexBuffer(g_blurIB.Get(), DXGI_FORMAT_R16_UINT, 0);
+    context->OMSetRenderTargets(1, g_blurRTV.GetAddressOf(), nullptr);
     context->PSSetShader(g_blurPS.Get(), nullptr, 0);
 
-    const XMFLOAT4 blurParams(g_blurRadius, 1.0f / (float)g_sceneW, 1.0f / (float)g_sceneH, 0.0f);
-    context->UpdateSubresource(g_blurCB.Get(), 0, nullptr, &blurParams, 0, 0);
-    context->PSSetConstantBuffers(1, 1, g_blurCB.GetAddressOf());
+    const float texelX = 1.0f / (float)g_sceneW;
+    const float texelY = 1.0f / (float)g_sceneH;
 
+    const XMFLOAT4 blurH(g_blurRadius, texelX, texelY, 0.0f);
+    context->UpdateSubresource(g_blurCB.Get(), 0, nullptr, &blurH, 0, 0);
+    context->PSSetConstantBuffers(1, 1, g_blurCB.GetAddressOf());
     ID3D11ShaderResourceView* sceneSRV = g_sceneSRV.Get();
     context->PSSetShaderResources(0, 1, &sceneSRV);
+    context->DrawIndexed(6, 0, 0);
+    context->PSSetShaderResources(0, 0, nullptr);
+
+    context->OMSetRenderTargets(1, backRTV.GetAddressOf(), nullptr);
+    context->ClearRenderTargetView(backRTV.Get(), clear);
+
+    const XMFLOAT4 blurV(g_blurRadius, texelX, texelY, 1.0f);
+    context->UpdateSubresource(g_blurCB.Get(), 0, nullptr, &blurV, 0, 0);
+    ID3D11ShaderResourceView* blurSRV = g_blurSRV.Get();
+    context->PSSetShaderResources(0, 1, &blurSRV);
     context->DrawIndexed(6, 0, 0);
     context->PSSetShaderResources(0, 0, nullptr);
 
