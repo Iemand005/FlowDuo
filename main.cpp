@@ -215,7 +215,7 @@ static void UpdateTiltFromHinge()
         return;
 
     g_hingeSmooth += 0.15f * ((float)hinge - g_hingeSmooth);
-    g_tiltDeg = max(0.0f, min(90.0f, g_hingeSmooth - 90.0f));
+    g_tiltDeg = g_hingeSmooth - 90.0f;
 
     SendMessageW(g_tiltSlider, TBM_SETPOS, TRUE, (LPARAM)(int)g_tiltDeg);
 }
@@ -345,7 +345,7 @@ static void PresentQuad(ID3D11Device* device, ID3D11DeviceContext* context, IDXG
 
     XMMATRIX world = XMMatrixScaling(scale, scale, scale) *
                      XMMatrixTranslation(0.0f, scale * g_quadHalfHeight, 0.0f) *
-                     XMMatrixRotationX(XMConvertToRadians(-g_tiltDeg)) *
+                     XMMatrixRotationX(XMConvertToRadians(g_tiltDeg)) *
                      XMMatrixTranslation(0.0f, -scale * g_quadHalfHeight, 0.0f);
     XMMATRIX view = XMMatrixLookAtLH(XMVectorSet(0.0f, 0.0f, -3.0f, 1.0f),
                                      XMVectorZero(), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
