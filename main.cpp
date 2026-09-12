@@ -462,7 +462,9 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nShowCmd)
         nullptr, nullptr, hInstance, nullptr);
 
     ShowWindow(hwnd, nShowCmd);
-    SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE);
+    bool excludeFromCapture = false;
+    if (excludeFromCapture)
+        SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE);
 
     INITCOMMONCONTROLSEX icc = { sizeof(icc), ICC_BAR_CLASSES };
     InitCommonControlsEx(&icc);
