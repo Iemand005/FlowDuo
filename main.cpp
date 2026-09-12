@@ -136,7 +136,7 @@ static void CreateQuadPipeline(ID3D11Device* device)
         "{\n"
         "    float2 texel = float2(texelDir.x, texelDir.y);\n"
         "    float2 dir = lerp(float2(texel.x, 0.0), float2(0.0, texel.y), texelDir.z);\n"
-        "    float sigma = lerp(ranges.x, ranges.y, i.uv.y);\n"
+        "    float sigma = lerp(ranges.x, ranges.y, 1.0 - i.uv.y);\n"
         "    int halfK = min(64, (int)(sigma * 2.5 + 0.5));\n"
         "    float wsum = 0.0;\n"
         "    float4 c = 0.0;\n"
