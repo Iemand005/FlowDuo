@@ -48,10 +48,13 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     return DefWindowProc(hwnd, msg, wParam, lParam);
 }
 
-static void CheckHr(HRESULT hr)
+static void CheckHr(HRESULT hr, const char* what)
 {
     if (FAILED(hr))
-        throw std::runtime_error("HRESULT failed");
+    {
+        LogState("CheckHr FAILED hr=0x%08X %s", (unsigned)hr, what);
+        throw std::runtime_error(what);
+    }
 }
 
 Texture* CreateCheckerTexture(ID3D11Device* device)
@@ -100,7 +103,10 @@ static ComPtr<ID3DBlob> CompileShader(const char* source, const char* target)
     if (FAILED(hr))
     {
         if (error)
+        {
             OutputDebugStringA(static_cast<const char*>(error->GetBufferPointer()));
+            LogState("shader compile FAILED target=%s:\n%s", target, (const char*)error->GetBufferPointer());
+        }
         throw std::runtime_error("shader compile failed");
     }
     return blob;
@@ -135,14 +141,14 @@ static bool CreateQuadPipeline(ID3D11Device* device)
         auto vsBlob = CompileShader(vsSrc, "vs_5_0");
         auto psBlob = CompileShader(psSrc, "ps_5_0");
 
-        CheckHr(device->CreateVertexShader(vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), nullptr, &g_quadVS));
-        CheckHr(device->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(), nullptr, &g_quadPS));
+        CheckHr(device->CreateVertexShader(vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), nullptr, &g_quadVS), "CreateVertexShader");
+        CheckHr(device->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(), nullptr, &g_quadPS), "CreatePixelShader");
 
         D3D11_INPUT_ELEMENT_DESC layout[] = {
             { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
             { "TEXCOORD0", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
         };
-        CheckHr(device->CreateInputLayout(layout, 2, vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), &g_quadLayout));
+        CheckHr(device->CreateInputLayout(layout, 2, vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), &g_quadLayout), "CreateInputLayout");
 
         QuadVertex verts[] = {
             { -1.0f, -1.0f, 0.0f, 0.0f, 1.0f },
@@ -157,14 +163,14 @@ static bool CreateQuadPipeline(ID3D11Device* device)
         vbDesc.Usage = D3D11_USAGE_DEFAULT;
         vbDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
         D3D11_SUBRESOURCE_DATA vbData = { verts, 0, 0 };
-        CheckHr(device->CreateBuffer(&vbDesc, &vbData, &g_quadVB));
+        CheckHr(device->CreateBuffer(&vbDesc, &vbData, &g_quadVB), "CreateVB");
 
         D3D11_BUFFER_DESC ibDesc = {};
         ibDesc.ByteWidth = sizeof(indices);
         ibDesc.Usage = D3D11_USAGE_DEFAULT;
         ibDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
         D3D11_SUBRESOURCE_DATA ibData = { indices, 0, 0 };
-        CheckHr(device->CreateBuffer(&ibDesc, &ibData, &g_quadIB));
+        CheckHr(device->CreateBuffer(&ibDesc, &ibData, &g_quadIB), "CreateIB");
 
         D3D11_BUFFER_DESC cbDesc = {};
         cbDesc.ByteWidth = sizeof(XMMATRIX);
