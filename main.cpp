@@ -3,6 +3,7 @@
 
 #include <cstring>
 #include <stdexcept>
+#include <cmath>
 #include <commctrl.h>
 
 #pragma comment(lib, "comctl32.lib")
@@ -32,6 +33,7 @@ static ComPtr<ID3D11Buffer> g_quadIB;
 static ComPtr<ID3D11Buffer> g_transformCB;
 static ComPtr<ID3D11SamplerState> g_quadSampler;
 static ComPtr<ID3D11RasterizerState> g_quadRaster;
+static float g_quadHalfHeight = 1.0f;
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -212,6 +214,7 @@ static void UpdateDesktopFrame(ID3D11Device* device, ID3D11DeviceContext* contex
                 CheckHr(device->CreateShaderResourceView(g_desktopTexture.Get(), nullptr, &g_desktopSRV));
 
                 Plane plane = CreatePlane(2.0f, 2.0f * (float)desc.Height / (float)desc.Width);
+                g_quadHalfHeight = (float)desc.Height / (float)desc.Width;
                 D3D11_BUFFER_DESC vbDesc = {};
                 vbDesc.Usage = D3D11_USAGE_DEFAULT;
                 vbDesc.ByteWidth = plane.vertexCount * sizeof(Vertex);
@@ -258,8 +261,14 @@ static void PresentQuad(ID3D11Device* device, ID3D11DeviceContext* context, IDXG
     context->IASetIndexBuffer(g_quadIB.Get(), DXGI_FORMAT_R16_UINT, 0);
 
     float aspect = (float)bbDesc.Width / (float)bbDesc.Height;
-    XMMATRIX world = XMMatrixRotationY(XMConvertToRadians(-25.0f)) *
-                     XMMatrixRotationX(XMConvertToRadians(g_tiltDeg));
+    float visibleH = 2.0f * 3.0f * tanf(XMConvertToRadians(30.0f));
+    float visibleW = visibleH * aspect;
+    float scale = max(visibleW / 2.0f, visibleH / (2.0f * g_quadHalfHeight));
+
+    XMMATRIX world = XMMatrixScaling(scale, scale, scale) *
+                     XMMatrixTranslation(0.0f, scale * g_quadHalfHeight, 0.0f) *
+                     XMMatrixRotationX(XMConvertToRadians(g_tiltDeg)) *
+                     XMMatrixTranslation(0.0f, -scale * g_quadHalfHeight, 0.0f);
     XMMATRIX view = XMMatrixLookAtLH(XMVectorSet(0.0f, 0.0f, -3.0f, 1.0f),
                                      XMVectorZero(), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
     XMMATRIX proj = XMMatrixPerspectiveFovLH(XMConvertToRadians(60.0f), aspect, 0.1f, 100.0f);
