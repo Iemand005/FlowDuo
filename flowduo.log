@@ -1,29 +1,7 @@
 CreateQuadPipeline=1
 InitDesktopCapture=1 mirror=1
-frame#1 mirror=1 fwf=0 dup=1 srv=0
-frame#31 mirror=1 fwf=0 dup=1 srv=1
-frame#61 mirror=1 fwf=0 dup=1 srv=1
 CreateQuadPipeline=1
 InitDesktopCapture=1 mirror=1
-frame#1 mirror=1 fwf=0 dup=1 srv=0
-frame#31 mirror=1 fwf=0 dup=1 srv=1
-frame#61 mirror=1 fwf=0 dup=1 srv=1
-frame#91 mirror=1 fwf=0 dup=1 srv=1
-frame#121 mirror=1 fwf=0 dup=1 srv=1
-frame#151 mirror=1 fwf=0 dup=1 srv=1
-frame#181 mirror=1 fwf=0 dup=1 srv=1
-frame#211 mirror=1 fwf=0 dup=1 srv=1
-frame#241 mirror=1 fwf=0 dup=1 srv=1
+WM_QUIT exit=0
 CreateQuadPipeline=1
 InitDesktopCapture=1 mirror=1
-frame#1 mirror=1 fwf=0 dup=1 srv=0
-frame#31 mirror=1 fwf=0 dup=1 srv=1
-frame#61 mirror=1 fwf=0 dup=1 srv=1
-frame#91 mirror=1 fwf=0 dup=1 srv=1
-frame#121 mirror=1 fwf=0 dup=1 srv=1
-CreateQuadPipeline=1
-InitDesktopCapture=1 mirror=1
-frame#1 mirror=1 fwf=0 dup=1 srv=0
-frame#31 mirror=1 fwf=0 dup=1 srv=1
-frame#61 mirror=1 fwf=0 dup=1 srv=1
-frame#91 mirror=1 fwf=0 dup=1 srv=1
