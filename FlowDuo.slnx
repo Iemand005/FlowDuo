@@ -4,4 +4,5 @@
     <Platform Name="x86" />
   </Configurations>
   <Project Path="FlowDuo.vcxproj" Id="17b40b5b-190d-4495-a3b9-66ad4d05a21c" />
+  <Project Path="LibCubeRenderer/LibCubeRenderer.vcxproj" Id="c5b7bfed-ebcd-4da1-821b-1782e2e459ce" />
 </Solution>
