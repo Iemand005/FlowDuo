@@ -11,9 +11,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     return DefWindowProc(hwnd, msg, wParam, lParam);
 }
 
-int main()
+int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nShowCmd)
 {
-    HINSTANCE hInstance = GetModuleHandleW(nullptr);
 
     WNDCLASSEXW wc = {};
     wc.cbSize = sizeof(wc);
@@ -29,7 +28,7 @@ int main()
         CW_USEDEFAULT, CW_USEDEFAULT, 800, 600,
         nullptr, nullptr, hInstance, nullptr);
 
-    ShowWindow(hwnd, SW_SHOW);
+    ShowWindow(hwnd, nShowCmd);
     UpdateWindow(hwnd);
 
     MSG msg = {};
