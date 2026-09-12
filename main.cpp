@@ -218,43 +218,6 @@ static bool CreateQuadPipeline(ID3D11Device* device)
     }
 }
 
-static void DumpDebugMessages()
-{
-    static bool dumped = false;
-    if (dumped)
-        return;
-
-    ComPtr<ID3D11Debug> debug;
-    if (FAILED(g_graphics.GetDevice()->QueryInterface(IID_PPV_ARGS(&debug))))
-        return;
-    ComPtr<ID3D11InfoQueue> queue;
-    if (FAILED(debug.As(&queue)))
-        return;
-
-    UINT64 num = queue->GetNumStoredMessages();
-    if (num == 0)
-    {
-        dumped = true;
-        return;
-    }
-
-    FILE* f = nullptr;
-    fopen_s(&f, "J:\\FlowDuo\\debug_msgs.txt", "w");
-    for (UINT64 i = 0; i < num; ++i)
-    {
-        SIZE_T len = 0;
-        queue->GetMessage(i, nullptr, &len);
-        std::vector<BYTE> buf(len);
-        D3D11_MESSAGE* msg = reinterpret_cast<D3D11_MESSAGE*>(buf.data());
-        queue->GetMessage(i, msg, &len);
-        if (f)
-            fprintf(f, "[sev=%u id=%u] %s\n", (unsigned)msg->Severity, (unsigned)msg->ID, msg->pDescription);
-    }
-    if (f)
-        fclose(f);
-    dumped = true;
-}
-
 static bool InitDesktopCapture(ID3D11Device* device)
 {
     ComPtr<IDXGIDevice> dxgiDevice;
