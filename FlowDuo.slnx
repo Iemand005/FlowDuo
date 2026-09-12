@@ -1,0 +1,7 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="FlowDuo.vcxproj" Id="17b40b5b-190d-4495-a3b9-66ad4d05a21c" />
+</Solution>
