@@ -386,6 +386,13 @@ static void PresentQuad(ID3D11Device* device, ID3D11DeviceContext* context, IDXG
         context->DrawIndexed(6, 0, 0);
     }
 
+    XMMATRIX identity = XMMatrixIdentity();
+    context->UpdateSubresource(g_transformCB.Get(), 0, nullptr, &identity, 0, 0);
+
+    vb = g_blurVB.Get();
+    context->IASetVertexBuffers(0, 1, &vb, &stride, &offset);
+    context->IASetIndexBuffer(g_blurIB.Get(), DXGI_FORMAT_R16_UINT, 0);
+
     context->OMSetRenderTargets(1, g_blurRTV.GetAddressOf(), nullptr);
     context->PSSetShader(g_blurPS.Get(), nullptr, 0);
 
