@@ -152,6 +152,10 @@
       <Project>{c5b7bfed-ebcd-4da1-821b-1782e2e459ce}</Project>
     </ProjectReference>
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="FlowX16HingeAngleReader\FlowX16HingeAngleReader.h" />
+    <ClInclude Include="FlowX16HingeAngleReader\WinAccelerometerReader\AccelerometerReader.h" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
