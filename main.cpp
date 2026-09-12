@@ -81,7 +81,7 @@ static void CreateQuadPipeline(ID3D11Device* device)
         "float4 main(VSOut i) : SV_TARGET\n"
         "{\n"
         "    float4 c = desktopTex.Sample(samp, i.uv);\n"
-        "    return float4(c.b, c.g, c.r, 1.0);\n"
+        "    return float4(c.rgb, 1.0);\n"
         "}\n";
 
     auto vsBlob = CompileShader(vsSrc, "vs_5_0");
