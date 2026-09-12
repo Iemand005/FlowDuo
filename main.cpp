@@ -477,6 +477,8 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nShowCmd)
     SendMessageW(g_tiltSlider, TBM_SETPOS, TRUE, (LPARAM)(int)g_tiltDeg);
 
     g_graphics.Init(hwnd);
+    g_hingeReader.Init();
+    g_hingeReader.useRawAccelerometer = true;
 
     ID3D11Device* device = g_graphics.GetDevice();
     ID3D11DeviceContext* context = g_graphics.GetContext();
