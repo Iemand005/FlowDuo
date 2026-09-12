@@ -50,7 +50,7 @@ static UINT g_sceneH = 0;
 static float g_fadeStart = 0.5f;
 static float g_fadeEnd = 1.0f;
 static float g_fadeStrength = 1.0f;
-static float g_blurRadius = 2.0f;
+static float g_blurRadius = 6.0f;
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -108,7 +108,7 @@ static void CreateQuadPipeline(ID3D11Device* device)
         "float4 main(VSOut i) : SV_TARGET\n"
         "{\n"
         "    float4 c = desktopTex.Sample(samp, i.uv);\n"
-        "    float fade = 1.0 - fadeParams.z * smoothstep(fadeParams.x, fadeParams.y, i.uv.y);\n"
+        "    float fade = 1.0 - fadeParams.z * smoothstep(fadeParams.x, fadeParams.y, 1.0 - i.uv.y);\n"
         "    return float4(c.rgb * fade, c.a);\n"
         "}\n";
 
