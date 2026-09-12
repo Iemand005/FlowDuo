@@ -1,1 +1,0 @@
-[sev=2 id=7] ID3D11DeviceContext::PSSetShaderResources: Resource being set to PS shader resource slot 0 is inaccessible because of a previous call to ReleaseSync or GetDC.

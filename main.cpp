@@ -15,6 +15,7 @@ static bool g_graphicsReady = false;
 static ComPtr<IDXGIOutputDuplication> g_duplication;
 static ComPtr<ID3D11Texture2D> g_desktopTexture;
 static ComPtr<ID3D11ShaderResourceView> g_desktopSRV;
+static ComPtr<ID3D11ShaderResourceView> g_testSRV;
 
 static ComPtr<ID3D11VertexShader> g_quadVS;
 static ComPtr<ID3D11PixelShader> g_quadPS;
@@ -218,6 +219,43 @@ static bool CreateQuadPipeline(ID3D11Device* device)
     }
 }
 
+static void DumpDebugMessages()
+{
+    static bool dumped = false;
+    if (dumped)
+        return;
+
+    ComPtr<ID3D11Debug> debug;
+    if (FAILED(g_graphics.GetDevice()->QueryInterface(IID_PPV_ARGS(&debug))))
+        return;
+    ComPtr<ID3D11InfoQueue> queue;
+    if (FAILED(debug.As(&queue)))
+        return;
+
+    UINT64 num = queue->GetNumStoredMessages();
+    if (num == 0)
+    {
+        dumped = true;
+        return;
+    }
+
+    FILE* f = nullptr;
+    fopen_s(&f, "J:\\FlowDuo\\debug_msgs.txt", "w");
+    for (UINT64 i = 0; i < num; ++i)
+    {
+        SIZE_T len = 0;
+        queue->GetMessage(i, nullptr, &len);
+        std::vector<BYTE> buf(len);
+        D3D11_MESSAGE* msg = reinterpret_cast<D3D11_MESSAGE*>(buf.data());
+        queue->GetMessage(i, msg, &len);
+        if (f)
+            fprintf(f, "[sev=%u id=%u] %s\n", (unsigned)msg->Severity, (unsigned)msg->ID, msg->pDescription);
+    }
+    if (f)
+        fclose(f);
+    dumped = true;
+}
+
 static bool InitDesktopCapture(ID3D11Device* device)
 {
     ComPtr<IDXGIDevice> dxgiDevice;
@@ -302,6 +340,7 @@ static bool UpdateDesktopFrame(ID3D11Device* device, ID3D11DeviceContext* contex
                 g_desktopTexture.Reset();
 
                 D3D11_TEXTURE2D_DESC copyDesc = desc;
+                copyDesc.MiscFlags = 0;
                 copyDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
                 copyDesc.Usage = D3D11_USAGE_DEFAULT;
                 copyDesc.CPUAccessFlags = 0;
@@ -369,9 +408,10 @@ static void PresentQuad(ID3D11Device* device, ID3D11DeviceContext* context, IDXG
     context->PSSetShader(g_quadPS.Get(), nullptr, 0);
     context->PSSetSamplers(0, 1, g_captureSampler.GetAddressOf());
 
-    if (g_desktopSRV)
+    ID3D11ShaderResourceView* srv = g_desktopSRV ? g_desktopSRV.Get() : g_testSRV.Get();
+    if (srv)
     {
-        context->PSSetShaderResources(0, 1, g_desktopSRV.GetAddressOf());
+        context->PSSetShaderResources(0, 1, &srv);
         context->DrawIndexed(6, 0, 0);
     }
 
@@ -400,6 +440,8 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nShowCmd)
     Scene* scene = g_graphics.Init(hwnd);
 
     Texture* texture = CreateCheckerTexture(g_graphics.GetDevice());
+    CheckHr(g_graphics.GetDevice()->CreateShaderResourceView(
+                texture->GetResource(), nullptr, &g_testSRV), "CreateCheckerSRV");
     scene->SetTexture(texture);
     scene->AddCube(16.0f, 16.0f, 16.0f, 0, 0, 0, 0, 0, texture);
     g_graphics.UpdateScene();
@@ -443,6 +485,8 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nShowCmd)
                 ++framesWithoutFrame;
 
             PresentQuad(device, context, swapChain);
+
+            DumpDebugMessages();
 
             if (framesWithoutFrame > 120)
             {
