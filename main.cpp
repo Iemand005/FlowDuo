@@ -1,13 +1,24 @@
 #include "CubeRenderer.h"
+#include "HingeSensorReader.h"
 
 #include <cstring>
 #include <stdexcept>
+#include <commctrl.h>
+
+#pragma comment(lib, "comctl32.lib")
 
 using namespace CubeRenderer;
 using namespace Microsoft::WRL;
 
 static Graphics g_graphics;
 static bool g_graphicsReady = false;
+
+static HWND g_tiltSlider = nullptr;
+static float g_tiltDeg = 55.0f;
+
+static HingeSensorReader g_hingeReader;
+static float g_hingeSmooth = 55.0f;
+static DWORD g_lastHingeRead = 0;
 
 static ComPtr<IDXGIOutputDuplication> g_duplication;
 static ComPtr<ID3D11Texture2D> g_desktopTexture;
@@ -22,12 +33,14 @@ static ComPtr<ID3D11Buffer> g_transformCB;
 static ComPtr<ID3D11SamplerState> g_quadSampler;
 static ComPtr<ID3D11RasterizerState> g_quadRaster;
 
-static XMMATRIX g_world = XMMatrixIdentity();
-
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     switch (msg)
     {
+    case WM_HSCROLL:
+        if ((HWND)lParam == g_tiltSlider)
+            g_tiltDeg = (float)SendMessageW(g_tiltSlider, TBM_GETPOS, 0, 0);
+        return 0;
     case WM_SIZE:
         if (g_graphicsReady)
             g_graphics.Resize(hwnd);
@@ -121,6 +134,26 @@ static void CreateQuadPipeline(ID3D11Device* device)
     rasterDesc.FillMode = D3D11_FILL_SOLID;
     rasterDesc.CullMode = D3D11_CULL_NONE;
     CheckHr(device->CreateRasterizerState(&rasterDesc, &g_quadRaster));
+}
+
+static void UpdateTiltFromHinge()
+{
+    if (!g_hingeReader.IsReady())
+        return;
+
+    DWORD now = GetTickCount();
+    if (now - g_lastHingeRead < 100)
+        return;
+    g_lastHingeRead = now;
+
+    int hinge = 0, lid = 0, body = 0;
+    if (FAILED(g_hingeReader.GetHingeAngle(&hinge, &lid, &body)))
+        return;
+
+    g_hingeSmooth += 0.15f * ((float)hinge - g_hingeSmooth);
+    g_tiltDeg = max(0.0f, min(90.0f, g_hingeSmooth - 90.0f));
+
+    SendMessageW(g_tiltSlider, TBM_SETPOS, TRUE, (LPARAM)(int)g_tiltDeg);
 }
 
 static void InitDesktopCapture(ID3D11Device* device)
@@ -225,10 +258,12 @@ static void PresentQuad(ID3D11Device* device, ID3D11DeviceContext* context, IDXG
     context->IASetIndexBuffer(g_quadIB.Get(), DXGI_FORMAT_R16_UINT, 0);
 
     float aspect = (float)bbDesc.Width / (float)bbDesc.Height;
+    XMMATRIX world = XMMatrixRotationY(XMConvertToRadians(-25.0f)) *
+                     XMMatrixRotationX(XMConvertToRadians(g_tiltDeg));
     XMMATRIX view = XMMatrixLookAtLH(XMVectorSet(0.0f, 0.0f, -3.0f, 1.0f),
                                      XMVectorZero(), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
     XMMATRIX proj = XMMatrixPerspectiveFovLH(XMConvertToRadians(60.0f), aspect, 0.1f, 100.0f);
-    XMMATRIX transform = XMMatrixTranspose(g_world * view * proj);
+    XMMATRIX transform = XMMatrixTranspose(world * view * proj);
     context->UpdateSubresource(g_transformCB.Get(), 0, nullptr, &transform, 0, 0);
     context->VSSetConstantBuffers(0, 1, g_transformCB.GetAddressOf());
 
@@ -264,6 +299,16 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nShowCmd)
 
     ShowWindow(hwnd, nShowCmd);
 
+    INITCOMMONCONTROLSEX icc = { sizeof(icc), ICC_BAR_CLASSES };
+    InitCommonControlsEx(&icc);
+
+    g_tiltSlider = CreateWindowExW(
+        0, TRACKBAR_CLASS, L"tilt", WS_CHILD | WS_VISIBLE | TBS_AUTOTICKS,
+        8, 8, 220, 32, hwnd, (HMENU)1, hInstance, nullptr);
+    SendMessageW(g_tiltSlider, TBM_SETRANGEMIN, TRUE, 0);
+    SendMessageW(g_tiltSlider, TBM_SETRANGEMAX, TRUE, 90);
+    SendMessageW(g_tiltSlider, TBM_SETPOS, TRUE, (LPARAM)(int)g_tiltDeg);
+
     g_graphics.Init(hwnd);
 
     ID3D11Device* device = g_graphics.GetDevice();
@@ -272,9 +317,6 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nShowCmd)
 
     CreateQuadPipeline(device);
     InitDesktopCapture(device);
-
-    g_world = XMMatrixRotationY(XMConvertToRadians(-25.0f)) *
-              XMMatrixRotationX(XMConvertToRadians(-55.0f));
 
     g_graphicsReady = true;
 
@@ -290,6 +332,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nShowCmd)
         }
 
         UpdateDesktopFrame(device, context);
+        UpdateTiltFromHinge();
         PresentQuad(device, context, swapChain);
         Sleep(16);
     }
