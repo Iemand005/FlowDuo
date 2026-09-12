@@ -102,8 +102,10 @@ namespace CubeRenderer {
 		ComPtr<ID3D11InfoQueue> infoQueue;
 		debug.As<ID3D11InfoQueue>(&infoQueue);
 
-		infoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_ERROR, true);
-		infoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_CORRUPTION, true);
+		if (IsDebuggerPresent()) {
+			infoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_ERROR, true);
+			infoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_CORRUPTION, true);
+		}
 
 		D3D11_MESSAGE_ID hide[] = { D3D11_MESSAGE_ID_DEVICE_DRAW_RENDERTARGETVIEW_NOT_SET };
 		D3D11_INFO_QUEUE_FILTER filter = {};
