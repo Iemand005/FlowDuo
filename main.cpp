@@ -47,7 +47,7 @@ static ComPtr<ID3D11ShaderResourceView> g_sceneSRV;
 static UINT g_sceneW = 0;
 static UINT g_sceneH = 0;
 
-static float g_fadeStart = 0.5f;
+static float g_fadeStart = 0.2f;
 static float g_fadeEnd = 1.0f;
 static float g_fadeStrength = 1.0f;
 static float g_blurRadius = 6.0f;
@@ -345,7 +345,7 @@ static void PresentQuad(ID3D11Device* device, ID3D11DeviceContext* context, IDXG
 
     XMMATRIX world = XMMatrixScaling(scale, scale, scale) *
                      XMMatrixTranslation(0.0f, scale * g_quadHalfHeight, 0.0f) *
-                     XMMatrixRotationX(XMConvertToRadians(g_tiltDeg)) *
+                     XMMatrixRotationX(XMConvertToRadians(-g_tiltDeg)) *
                      XMMatrixTranslation(0.0f, -scale * g_quadHalfHeight, 0.0f);
     XMMATRIX view = XMMatrixLookAtLH(XMVectorSet(0.0f, 0.0f, -3.0f, 1.0f),
                                      XMVectorZero(), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
