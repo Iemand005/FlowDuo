@@ -22,13 +22,7 @@ static ComPtr<ID3D11Buffer> g_transformCB;
 static ComPtr<ID3D11SamplerState> g_quadSampler;
 static ComPtr<ID3D11RasterizerState> g_quadRaster;
 
-static XMMATRIX g_quadTransform = XMMatrixIdentity();
-
-struct QuadVertex
-{
-    float x, y, z;
-    float u, v;
-};
+static XMMATRIX g_world = XMMatrixIdentity();
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -96,25 +90,21 @@ static void CreateQuadPipeline(ID3D11Device* device)
     };
     CheckHr(device->CreateInputLayout(layout, 2, vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), &g_quadLayout));
 
-    QuadVertex verts[] = {
-        { -1.0f, -1.0f, 0.0f, 0.0f, 1.0f },
-        {  1.0f, -1.0f, 0.0f, 1.0f, 1.0f },
-        {  1.0f,  1.0f, 0.0f, 1.0f, 0.0f },
-        { -1.0f,  1.0f, 0.0f, 0.0f, 0.0f },
-    };
-    const USHORT indices[] = { 0, 1, 2, 0, 2, 3 };
+    Plane plane = CreatePlane(2.0f, 2.0f);
 
     D3D11_BUFFER_DESC desc = {};
     desc.Usage = D3D11_USAGE_DEFAULT;
-    desc.ByteWidth = sizeof(verts);
+    desc.ByteWidth = plane.vertexCount * sizeof(Vertex);
     desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-    D3D11_SUBRESOURCE_DATA data = { verts, 0, 0 };
+    D3D11_SUBRESOURCE_DATA data = { plane.vertices, 0, 0 };
     CheckHr(device->CreateBuffer(&desc, &data, &g_quadVB));
 
-    desc.ByteWidth = sizeof(indices);
+    desc.ByteWidth = plane.indexCount * sizeof(USHORT);
     desc.BindFlags = D3D11_BIND_INDEX_BUFFER;
-    data = { indices, 0, 0 };
+    data = { plane.indices, 0, 0 };
     CheckHr(device->CreateBuffer(&desc, &data, &g_quadIB));
+
+    DeletePlane(plane);
 
     desc.ByteWidth = sizeof(XMMATRIX);
     desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
@@ -187,6 +177,15 @@ static void UpdateDesktopFrame(ID3D11Device* device, ID3D11DeviceContext* contex
                 copyDesc.CPUAccessFlags = 0;
                 CheckHr(device->CreateTexture2D(&copyDesc, nullptr, &g_desktopTexture));
                 CheckHr(device->CreateShaderResourceView(g_desktopTexture.Get(), nullptr, &g_desktopSRV));
+
+                Plane plane = CreatePlane(2.0f, 2.0f * (float)desc.Height / (float)desc.Width);
+                D3D11_BUFFER_DESC vbDesc = {};
+                vbDesc.Usage = D3D11_USAGE_DEFAULT;
+                vbDesc.ByteWidth = plane.vertexCount * sizeof(Vertex);
+                vbDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+                D3D11_SUBRESOURCE_DATA vbData = { plane.vertices, 0, 0 };
+                CheckHr(device->CreateBuffer(&vbDesc, &vbData, &g_quadVB));
+                DeletePlane(plane);
             }
 
             context->CopyResource(g_desktopTexture.Get(), desktopImage.Get());
@@ -219,13 +218,17 @@ static void PresentQuad(ID3D11Device* device, ID3D11DeviceContext* context, IDXG
 
     context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     context->IASetInputLayout(g_quadLayout.Get());
-    UINT stride = sizeof(QuadVertex);
+    UINT stride = sizeof(Vertex);
     UINT offset = 0;
     ID3D11Buffer* vb = g_quadVB.Get();
     context->IASetVertexBuffers(0, 1, &vb, &stride, &offset);
     context->IASetIndexBuffer(g_quadIB.Get(), DXGI_FORMAT_R16_UINT, 0);
 
-    XMMATRIX transform = XMMatrixTranspose(g_quadTransform);
+    float aspect = (float)bbDesc.Width / (float)bbDesc.Height;
+    XMMATRIX view = XMMatrixLookAtLH(XMVectorSet(0.0f, 0.0f, -3.0f, 1.0f),
+                                     XMVectorZero(), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
+    XMMATRIX proj = XMMatrixPerspectiveFovLH(XMConvertToRadians(60.0f), aspect, 0.1f, 100.0f);
+    XMMATRIX transform = XMMatrixTranspose(g_world * view * proj);
     context->UpdateSubresource(g_transformCB.Get(), 0, nullptr, &transform, 0, 0);
     context->VSSetConstantBuffers(0, 1, g_transformCB.GetAddressOf());
 
@@ -269,6 +272,9 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nShowCmd)
 
     CreateQuadPipeline(device);
     InitDesktopCapture(device);
+
+    g_world = XMMatrixRotationY(XMConvertToRadians(-25.0f)) *
+              XMMatrixRotationX(XMConvertToRadians(-55.0f));
 
     g_graphicsReady = true;
 
