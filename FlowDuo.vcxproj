@@ -110,7 +110,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>LibCubeRenderer\include;FlowX16HingeAngleReader;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>J:\FlowDuo\FlowX16HingeAngleReader\WinAccelerometerReader;LibCubeRenderer\include;FlowX16HingeAngleReader;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
@@ -143,6 +143,7 @@
     </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="FlowX16HingeAngleReader\WinAccelerometerReader\AccelerometerReader.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="FlowX16HingeAngleReader\HingeSensorReader.cpp" />
   </ItemGroup>
