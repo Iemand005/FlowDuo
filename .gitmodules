@@ -1,3 +1,6 @@
 [submodule "LibCubeRenderer"]
 	path = LibCubeRenderer
 	url = https://github.com/Iemand005/LibCubeRenderer.git
+[submodule "FlowX16HingeAngleReader"]
+	path = FlowX16HingeAngleReader
+	url = https://github.com/Iemand005/FlowX16HingeAngleReader.git
