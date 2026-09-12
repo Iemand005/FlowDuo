@@ -1,0 +1,3 @@
+[submodule "LibCubeRenderer"]
+	path = LibCubeRenderer
+	url = https://github.com/Iemand005/LibCubeRenderer.git
