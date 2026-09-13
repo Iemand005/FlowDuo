@@ -5,6 +5,7 @@
 
 #include <stdexcept>
 #include <cmath>
+#include <cassert>
 
 using namespace CubeRenderer;
 using namespace Microsoft::WRL;
@@ -53,6 +54,29 @@ static XMVECTOR TransformPoint(const XMVECTOR& point, const XMMATRIX& transform)
     return XMVector3TransformCoord(point, transform);
 }
 
+static XMVECTOR GetPhysicalTopLeft(float tiltRadians, float halfHeight) {
+    const XMVECTOR hinge = XMVectorSet(-1.0f, -halfHeight, 0.0f, 1.0f);
+    const XMVECTOR top = XMVectorSet(-1.0f, halfHeight, 0.0f, 1.0f);
+    return XMVectorAdd(hinge, XMVector3TransformNormal(
+        XMVectorSubtract(top, hinge), XMMatrixRotationX(-tiltRadians)));
+}
+
+static XMVECTOR GetPhysicalTopRight(float tiltRadians, float halfHeight) {
+    const XMVECTOR hinge = XMVectorSet(1.0f, -halfHeight, 0.0f, 1.0f);
+    const XMVECTOR top = XMVectorSet(1.0f, halfHeight, 0.0f, 1.0f);
+    return XMVectorAdd(hinge, XMVector3TransformNormal(
+        XMVectorSubtract(top, hinge), XMMatrixRotationX(-tiltRadians)));
+}
+
+static float ProjectedEdgeWidth(const XMVECTOR& left, const XMVECTOR& right, const XMMATRIX& view, const XMMATRIX& projection) {
+    const XMMATRIX viewProjection = view * projection;
+    const XMVECTOR projectedLeft = XMVector4Transform(left, viewProjection);
+    const XMVECTOR projectedRight = XMVector4Transform(right, viewProjection);
+    const float leftX = XMVectorGetX(projectedLeft) / XMVectorGetW(projectedLeft);
+    const float rightX = XMVectorGetX(projectedRight) / XMVectorGetW(projectedRight);
+    return fabsf(rightX - leftX);
+}
+
 static void BuildVirtualDisplayVertices(float halfHeight, Vertex* vertices) {
     const XMMATRIX calibratedWorld = XMMatrixIdentity();
     const XMVECTOR bottomLeft = TransformPoint(XMVectorSet(-1.0f, -halfHeight, 0.0f, 1.0f), calibratedWorld);
@@ -60,10 +84,16 @@ static void BuildVirtualDisplayVertices(float halfHeight, Vertex* vertices) {
     const XMVECTOR topLeftReference = TransformPoint(XMVectorSet(-1.0f, halfHeight, 0.0f, 1.0f), calibratedWorld);
     const XMVECTOR topRightReference = TransformPoint(XMVectorSet(1.0f, halfHeight, 0.0f, 1.0f), calibratedWorld);
 
-    XMStoreFloat3(&vertices[0].position, bottomLeft);
-    XMStoreFloat3(&vertices[1].position, bottomRight);
-    XMStoreFloat3(&vertices[2].position, topRightReference);
-    XMStoreFloat3(&vertices[3].position, topLeftReference);
+    XMFLOAT3 positions[4] = {};
+    XMStoreFloat3(&positions[0], bottomLeft);
+    XMStoreFloat3(&positions[1], bottomRight);
+    XMStoreFloat3(&positions[2], topRightReference);
+    XMStoreFloat3(&positions[3], topLeftReference);
+    for (int index = 0; index < 4; ++index) {
+        vertices[index].position.x = positions[index].x;
+        vertices[index].position.y = positions[index].y;
+        vertices[index].position.z = positions[index].z;
+    }
 
     vertices[0].textureCoordinate = { 0.0f, 1.0f };
     vertices[1].textureCoordinate = { 1.0f, 1.0f };
@@ -189,6 +219,7 @@ static bool PresentQuad(ID3D11DeviceContext* context) {
     context->RSSetViewports(1, &viewport);
     float aspect = (float)width / (float)height;
     float fov = 40.0f;
+    const float tiltRadians = XMConvertToRadians(g_tiltDeg);
     Vertex virtualVertices[4] = {};
     BuildVirtualDisplayVertices(g_quadHalfHeight, virtualVertices);
     context->UpdateSubresource(g_quadResources.vertexBuffer.Get(), 0, nullptr, virtualVertices, 0, 0);
@@ -196,6 +227,19 @@ static bool PresentQuad(ID3D11DeviceContext* context) {
     XMMATRIX world = XMMatrixIdentity();
     XMMATRIX view = XMMatrixLookAtLH(XMVectorSet(0.0f, 0.0f, -3.0f, 1.0f), XMVectorZero(), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
     XMMATRIX proj = XMMatrixPerspectiveFovLH(XMConvertToRadians(fov), aspect, 0.1f, 100.0f);
+
+#ifdef _DEBUG
+    if (g_tiltDeg > 0.001f) {
+        const XMVECTOR physicalTopLeft = GetPhysicalTopLeft(tiltRadians, g_quadHalfHeight);
+        const XMVECTOR physicalTopRight = GetPhysicalTopRight(tiltRadians, g_quadHalfHeight);
+        const float virtualTopWidth = ProjectedEdgeWidth(
+            XMVectorSet(-1.0f, g_quadHalfHeight, 0.0f, 1.0f),
+            XMVectorSet(1.0f, g_quadHalfHeight, 0.0f, 1.0f), view, proj);
+        const float physicalTopWidth = ProjectedEdgeWidth(physicalTopLeft, physicalTopRight, view, proj);
+        assert(virtualTopWidth < physicalTopWidth);
+    }
+#endif
+
     XMMATRIX transform = XMMatrixTranspose(world * view * proj);
 
     const float clear[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
