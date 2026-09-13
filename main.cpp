@@ -25,20 +25,11 @@ static ComPtr<ID3D11ShaderResourceView> g_desktopSRV;
 
 static ComPtr<ID3D11VertexShader> g_quadVS;
 static ComPtr<ID3D11PixelShader> g_quadPS;
-static ComPtr<ID3D11InputLayout> g_quadLayout;
-static ComPtr<ID3D11Buffer> g_quadVB;
-static ComPtr<ID3D11Buffer> g_quadIB;
-static ComPtr<ID3D11Buffer> g_transformCB;
-static ComPtr<ID3D11SamplerState> g_quadSampler;
-static ComPtr<ID3D11RasterizerState> g_quadRaster;
+static Graphics::QuadResources g_quadResources;
 static float g_quadHalfHeight = 1.0f;
 
 static ComPtr<ID3D11PixelShader> g_blurQualityPS;
 static ComPtr<ID3D11PixelShader> g_blurPerformancePS;
-static ComPtr<ID3D11Buffer> g_fadeCB;
-static ComPtr<ID3D11Buffer> g_blurCB;
-static ComPtr<ID3D11Buffer> g_blurVB;
-static ComPtr<ID3D11Buffer> g_blurIB;
 
 static Graphics::RenderTarget g_sceneTarget;
 static Graphics::RenderTarget g_blurTarget;
@@ -148,63 +139,7 @@ static void CreateQuadPipeline(ID3D11Device* device)
     CheckHr(device->CreatePixelShader(blurQualityBlob->GetBufferPointer(), blurQualityBlob->GetBufferSize(), nullptr, &g_blurQualityPS));
     CheckHr(device->CreatePixelShader(blurPerformanceBlob->GetBufferPointer(), blurPerformanceBlob->GetBufferSize(), nullptr, &g_blurPerformancePS));
 
-    D3D11_INPUT_ELEMENT_DESC layout[] = {
-        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-    };
-    CheckHr(device->CreateInputLayout(layout, 2, vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), &g_quadLayout));
-
-    Plane plane = CreatePlane(2.0f, 2.0f);
-
-    D3D11_BUFFER_DESC desc = {};
-    desc.Usage = D3D11_USAGE_DEFAULT;
-    desc.ByteWidth = plane.vertexCount * sizeof(Vertex);
-    desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-    D3D11_SUBRESOURCE_DATA data = { plane.vertices, 0, 0 };
-    CheckHr(device->CreateBuffer(&desc, &data, &g_quadVB));
-
-    desc.ByteWidth = plane.indexCount * sizeof(USHORT);
-    desc.BindFlags = D3D11_BIND_INDEX_BUFFER;
-    data = { plane.indices, 0, 0 };
-    CheckHr(device->CreateBuffer(&desc, &data, &g_quadIB));
-
-    DeletePlane(plane);
-
-    Plane blurPlane = CreatePlane(2.0f, 2.0f);
-
-    desc.ByteWidth = blurPlane.vertexCount * sizeof(Vertex);
-    desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-    data = { blurPlane.vertices, 0, 0 };
-    CheckHr(device->CreateBuffer(&desc, &data, &g_blurVB));
-
-    desc.ByteWidth = blurPlane.indexCount * sizeof(USHORT);
-    desc.BindFlags = D3D11_BIND_INDEX_BUFFER;
-    data = { blurPlane.indices, 0, 0 };
-    CheckHr(device->CreateBuffer(&desc, &data, &g_blurIB));
-
-    DeletePlane(blurPlane);
-
-    desc.ByteWidth = sizeof(XMMATRIX);
-    desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-    CheckHr(device->CreateBuffer(&desc, nullptr, &g_transformCB));
-
-    desc.ByteWidth = 16;
-    desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-    CheckHr(device->CreateBuffer(&desc, nullptr, &g_fadeCB));
-    desc.ByteWidth = 32;
-    CheckHr(device->CreateBuffer(&desc, nullptr, &g_blurCB));
-
-    D3D11_SAMPLER_DESC sampDesc = {};
-    sampDesc.Filter = D3D11_FILTER_MIN_MAG_LINEAR_MIP_POINT;
-    sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
-    sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
-    sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
-    CheckHr(device->CreateSamplerState(&sampDesc, &g_quadSampler));
-
-    D3D11_RASTERIZER_DESC rasterDesc = {};
-    rasterDesc.FillMode = D3D11_FILL_SOLID;
-    rasterDesc.CullMode = D3D11_CULL_NONE;
-    CheckHr(device->CreateRasterizerState(&rasterDesc, &g_quadRaster));
+    g_graphics.CreateQuadResources(vsBlob.Get(), g_quadResources);
 }
 
 static void UpdateTiltFromHinge()
@@ -289,15 +224,8 @@ static bool UpdateDesktopFrame(ID3D11Device* device, ID3D11DeviceContext* contex
                 CheckHr(device->CreateTexture2D(&copyDesc, nullptr, &g_desktopTexture));
                 CheckHr(device->CreateShaderResourceView(g_desktopTexture.Get(), nullptr, &g_desktopSRV));
 
-                Plane plane = CreatePlane(2.0f, 2.0f * (float)desc.Height / (float)desc.Width);
                 g_quadHalfHeight = (float)desc.Height / (float)desc.Width;
-                D3D11_BUFFER_DESC vbDesc = {};
-                vbDesc.Usage = D3D11_USAGE_DEFAULT;
-                vbDesc.ByteWidth = plane.vertexCount * sizeof(Vertex);
-                vbDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-                D3D11_SUBRESOURCE_DATA vbData = { plane.vertices, 0, 0 };
-                CheckHr(device->CreateBuffer(&vbDesc, &vbData, &g_quadVB));
-                DeletePlane(plane);
+                g_graphics.CreateQuadVertexBuffer(2.0f, 2.0f * g_quadHalfHeight, g_quadResources.vertexBuffer);
             }
 
             context->CopyResource(g_desktopTexture.Get(), desktopImage.Get());
@@ -328,7 +256,7 @@ static bool PresentQuad(ID3D11DeviceContext* context)
 
     D3D11_VIEWPORT viewport = { 0, 0, (float)effectWidth, (float)effectHeight, 0.0f, 1.0f };
     context->RSSetViewports(1, &viewport);
-    context->RSSetState(g_quadRaster.Get());
+    context->RSSetState(g_quadResources.rasterizer.Get());
     
     float aspect = (float)width / (float)height;
     float fov = 40.0f;
@@ -355,25 +283,25 @@ static bool PresentQuad(ID3D11DeviceContext* context)
     UINT offset = 0;
 
     context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    context->IASetInputLayout(g_quadLayout.Get());
-    context->VSSetConstantBuffers(0, 1, g_transformCB.GetAddressOf());
+    context->IASetInputLayout(g_quadResources.inputLayout.Get());
+    context->VSSetConstantBuffers(0, 1, g_quadResources.transformBuffer.GetAddressOf());
     context->VSSetShader(g_quadVS.Get(), nullptr, 0);
-    context->PSSetSamplers(0, 1, g_quadSampler.GetAddressOf());
+    context->PSSetSamplers(0, 1, g_quadResources.sampler.GetAddressOf());
 
     context->OMSetRenderTargets(1, g_sceneTarget.renderTargetView.GetAddressOf(), nullptr);
     context->ClearRenderTargetView(g_sceneTarget.renderTargetView.Get(), clear);
 
-    context->UpdateSubresource(g_transformCB.Get(), 0, nullptr, &transform, 0, 0);
-    ID3D11Buffer* vb = g_quadVB.Get();
+    context->UpdateSubresource(g_quadResources.transformBuffer.Get(), 0, nullptr, &transform, 0, 0);
+    ID3D11Buffer* vb = g_quadResources.vertexBuffer.Get();
     context->IASetVertexBuffers(0, 1, &vb, &stride, &offset);
-    context->IASetIndexBuffer(g_quadIB.Get(), DXGI_FORMAT_R16_UINT, 0);
+    context->IASetIndexBuffer(g_quadResources.indexBuffer.Get(), DXGI_FORMAT_R16_UINT, 0);
     context->PSSetShader(g_quadPS.Get(), nullptr, 0);
 
     if (g_desktopSRV)
     {
         const XMFLOAT4 fadeParams(g_fadeStart, g_fadeEnd, g_fadeStrength, 0.0f);
-        context->UpdateSubresource(g_fadeCB.Get(), 0, nullptr, &fadeParams, 0, 0);
-        context->PSSetConstantBuffers(1, 1, g_fadeCB.GetAddressOf());
+        context->UpdateSubresource(g_quadResources.fadeBuffer.Get(), 0, nullptr, &fadeParams, 0, 0);
+        context->PSSetConstantBuffers(1, 1, g_quadResources.fadeBuffer.GetAddressOf());
 
         ID3D11ShaderResourceView* srv = g_desktopSRV.Get();
         context->PSSetShaderResources(0, 1, &srv);
@@ -381,11 +309,11 @@ static bool PresentQuad(ID3D11DeviceContext* context)
     }
 
     XMMATRIX identity = XMMatrixIdentity();
-    context->UpdateSubresource(g_transformCB.Get(), 0, nullptr, &identity, 0, 0);
+    context->UpdateSubresource(g_quadResources.transformBuffer.Get(), 0, nullptr, &identity, 0, 0);
 
-    vb = g_blurVB.Get();
+    vb = g_quadResources.blurVertexBuffer.Get();
     context->IASetVertexBuffers(0, 1, &vb, &stride, &offset);
-    context->IASetIndexBuffer(g_blurIB.Get(), DXGI_FORMAT_R16_UINT, 0);
+    context->IASetIndexBuffer(g_quadResources.blurIndexBuffer.Get(), DXGI_FORMAT_R16_UINT, 0);
 
     context->OMSetRenderTargets(1, g_blurTarget.renderTargetView.GetAddressOf(), nullptr);
     context->PSSetShader((g_highQualityBlur ? g_blurQualityPS : g_blurPerformancePS).Get(), nullptr, 0);
@@ -398,8 +326,8 @@ static bool PresentQuad(ID3D11DeviceContext* context)
     const XMFLOAT4 blurH(texelX, texelY, 0.0f, 0.0f);
     const XMFLOAT4 blurH2 = blurRanges;
     struct { XMFLOAT4 a; XMFLOAT4 b; } blurHB = { blurH, blurH2 };
-    context->UpdateSubresource(g_blurCB.Get(), 0, nullptr, &blurHB, 0, 0);
-    context->PSSetConstantBuffers(1, 1, g_blurCB.GetAddressOf());
+    context->UpdateSubresource(g_quadResources.blurBuffer.Get(), 0, nullptr, &blurHB, 0, 0);
+    context->PSSetConstantBuffers(1, 1, g_quadResources.blurBuffer.GetAddressOf());
     ID3D11ShaderResourceView* sceneSRV = g_sceneTarget.shaderResourceView.Get();
     context->PSSetShaderResources(0, 1, &sceneSRV);
     context->DrawIndexed(6, 0, 0);
@@ -412,7 +340,7 @@ static bool PresentQuad(ID3D11DeviceContext* context)
 
     const XMFLOAT4 blurV(texelX, texelY, 1.0f, 0.0f);
     struct { XMFLOAT4 a; XMFLOAT4 b; } blurVB = { blurV, blurRanges };
-    context->UpdateSubresource(g_blurCB.Get(), 0, nullptr, &blurVB, 0, 0);
+    context->UpdateSubresource(g_quadResources.blurBuffer.Get(), 0, nullptr, &blurVB, 0, 0);
     ID3D11ShaderResourceView* blurSRV = g_blurTarget.shaderResourceView.Get();
     context->PSSetShaderResources(0, 1, &blurSRV);
     context->DrawIndexed(6, 0, 0);
