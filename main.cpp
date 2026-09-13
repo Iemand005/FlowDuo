@@ -371,7 +371,7 @@ static void PresentQuad(ID3D11Device* device, ID3D11DeviceContext* context, IDXG
     context->RSSetState(g_quadRaster.Get());
     
     float aspect = (float)bbDesc.Width / (float)bbDesc.Height;
-    float fov = 30.0f;
+    float fov = 40.0f;
     float visibleH = 2.0f * 3.0f * tanf(XMConvertToRadians(fov / 2.0f));
     float visibleW = visibleH * aspect;
     float scale = max(visibleW / 2.0f, visibleH / (2.0f * g_quadHalfHeight));
