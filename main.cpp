@@ -63,7 +63,10 @@ bool calibrated = false;
 static void Calibrate(HWND hwnd) {
     if (!g_hingeReader.IsReady()) return;
     calibrated = true;
-    g_calibOffset = g_hingeSmooth - 89.0f;  
+    float hinge = 0;
+    if (FAILED(g_hingeReader.GetHingeAngleFloat(&hinge)))
+        return;
+    g_calibOffset = hinge - 87.0f;
 }
 
 void ToggleWindowVisible(HWND hwnd, bool visible) {
@@ -510,7 +513,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nShowCmd)
     g_hingeReader.Init();
     g_hingeReader.useRawAccelerometer = true;
 
-    ID3D11Device* device = g_graphics.GetDevice();
+    ID3D11Device* device = g_graphics.GetDevice(); 
     ID3D11DeviceContext* context = g_graphics.GetContext();
     IDXGISwapChain* swapChain = g_graphics.GetSwapChain();
 
