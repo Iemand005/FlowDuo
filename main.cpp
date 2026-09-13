@@ -65,15 +65,13 @@ void ToggleWindowVisible(HWND hwnd, bool visible) {
 }
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
-    switch (msg)
-    {
+    switch (msg) {
     case WM_SIZE:
         if (g_graphicsReady)
             g_graphics.Resize(hwnd);
         return 0;
     case WM_KEYDOWN:
-        if (wParam == VK_SPACE)
-            Calibrate();
+        if (wParam == VK_SPACE) Calibrate();
         return 0;
     case WM_DESTROY:
         PostQuitMessage(0);
@@ -86,13 +84,6 @@ static void CheckHr(HRESULT hr) {
     if (FAILED(hr)) throw std::runtime_error("HRESULT failed");
 }
 
-static ComPtr<ID3DBlob> CompileShader(const void* source, SIZE_T sourceSize, const char* target) {
-    ComPtr<ID3DBlob> blob;
-    ComPtr<ID3DBlob> error;
-    CheckHr(D3DCompile(source, sourceSize, nullptr, nullptr, nullptr, "main", target, 0, 0, &blob, &error));
-    return blob;
-}
-
 static ComPtr<ID3DBlob> CompileShaderResource(int resourceId, const char* target) {
     HMODULE module = GetModuleHandleW(nullptr);
     HRSRC resource = FindResourceW(module, MAKEINTRESOURCEW(resourceId), RT_RCDATA);
@@ -103,7 +94,7 @@ static ComPtr<ID3DBlob> CompileShaderResource(int resourceId, const char* target
 
     DWORD size = SizeofResource(module, resource);
     CheckHr(size ? S_OK : HRESULT_FROM_WIN32(GetLastError()));
-    return CompileShader(LockResource(data), size, target);
+    return g_graphics.CompileShader(LockResource(data), size, target);
 }
 
 static void CreateQuadPipeline(ID3D11Device* device) {
