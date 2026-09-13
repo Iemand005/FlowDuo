@@ -1,41 +1,74 @@
-Texture2D desktopTex : register(t0);
-SamplerState samp : register(s0);
-cbuffer SceneCB : register(b1)
+Texture2D displayTex : register(t0);
+SamplerState borderSamp : register(s0);
+
+cbuffer SceneCB : register(b0)
 {
-    float4 fadeParams;
-    float4 blurParams;
+    float4 headPos;
+    float4 dispOrigin;
+    float4 dispRightAxis;
+    float4 dispUpAxis;
+    float4 dispNormal;
+    float4 lidBL;
+    float4 lidBR;
+    float4 lidTL;
+    float4 lidTR;
+    float4 displayMetrics;
+    float4 blurMetrics;
+    float4 effectMetrics;
 };
 
 struct VSOut
 {
     float4 pos : SV_POSITION;
-    float2 uv : TEXCOORD0;
-    float blur : TEXCOORD1;
+    float2 st : TEXCOORD0;
+    float3 lidWorld : TEXCOORD1;
 };
 
 float4 main(VSOut i) : SV_TARGET
 {
-    float2 uv = i.uv;
-    if (blurParams.y > 0.5f)
-        uv.y = 1.0f - uv.y;
-    float radius = i.blur * blurParams.x;
+    float3 ray = normalize(i.lidWorld - headPos.xyz);
+    float denominator = dot(dispNormal.xyz, ray);
+    if (abs(denominator) < 0.00001)
+        return float4(0.0, 0.0, 0.0, 1.0);
 
-    const int lobes = 4;
-    const int dirs = 8;
-    float4 sum = desktopTex.Sample(samp, uv);
-    float weight = 1.0;
-    for (int l = 1; l <= lobes; ++l)
+    float tHit = dot(dispNormal.xyz, dispOrigin.xyz - headPos.xyz) / denominator;
+    if (tHit < 0.0)
+        return float4(0.0, 0.0, 0.0, 1.0);
+
+    float3 sourcePoint = headPos.xyz + tHit * ray;
+    float3 local = sourcePoint - dispOrigin.xyz;
+    float u = dot(local, dispRightAxis.xyz) / displayMetrics.x;
+    float v = dot(local, dispUpAxis.xyz) / displayMetrics.y;
+
+    if (u < 0.0 || u > 1.0 || v < 0.0 || v > 1.0)
+        return float4(0.0, 0.0, 0.0, 1.0);
+
+    if (blurMetrics.w > 0.5)
+        v = 1.0 - v;
+
+    float blurT = saturate((tHit - blurMetrics.x) / max(blurMetrics.y - blurMetrics.x, 0.0001));
+    float radiusPx = blurT * blurMetrics.z;
+    uint textureWidth;
+    uint textureHeight;
+    displayTex.GetDimensions(textureWidth, textureHeight);
+    float2 texel = radiusPx / float2(textureWidth, textureHeight);
+    float4 color = displayTex.Sample(borderSamp, float2(u, v));
+    if (radiusPx > 0.5)
     {
-        float d = (float)l / (float)lobes * radius;
-        for (int k = 0; k < dirs; ++k)
+        float4 sum = color;
+        const int taps = 4;
+        [unroll]
+        for (int tap = 1; tap <= taps; ++tap)
         {
-            float ang = 6.28318530718f / (float)dirs * (float)k;
-            sum += desktopTex.Sample(samp, uv + float2(cos(ang), sin(ang)) * d);
-            weight += 1.0;
+            float weight = (float)tap / (float)taps;
+            sum += displayTex.Sample(borderSamp, float2(u, v) + float2(texel.x, 0.0) * weight);
+            sum += displayTex.Sample(borderSamp, float2(u, v) - float2(texel.x, 0.0) * weight);
+            sum += displayTex.Sample(borderSamp, float2(u, v) + float2(0.0, texel.y) * weight);
+            sum += displayTex.Sample(borderSamp, float2(u, v) - float2(0.0, texel.y) * weight);
         }
+        color = sum / (1.0 + 4.0 * taps);
     }
 
-    float4 c = sum / weight;
-    float fade = 1.0 - fadeParams.z * smoothstep(fadeParams.x, fadeParams.y, uv.y);
-    return float4(c.rgb * fade, c.a);
+    float fade = 1.0 - effectMetrics.x * smoothstep(0.2, 1.0, v);
+    return float4(color.rgb * fade, color.a);
 }

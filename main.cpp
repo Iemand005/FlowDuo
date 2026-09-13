@@ -29,14 +29,14 @@ static ComPtr<ID3D11PixelShader> g_quadPS;
 static Graphics::QuadResources g_quadResources;
 static float g_quadHalfHeight = 1.0f;
 
-static float g_fadeStart = 0.2f;
-static float g_fadeEnd = 1.0f;
 static float g_fadeStrength = 0.0f;
-static float g_blurScale = 0.08f;
 static bool g_flipV = true;
+static float g_blurNear = 0.0f;
+static float g_blurFar = 3.0f;
+static float g_maxBlurPixels = 20.0f;
 static DWORD g_hingeSampleIntervalMs = 1;
 static UINT g_presentSyncInterval = 1;
-static XMFLOAT3 g_headPosition = { 0.0f, 0.0f, -3.0f };
+static XMFLOAT3 g_headPosition = { 0.0f, 1.0f, 3.0f };
 
 static bool calibrated = false;
 
@@ -47,88 +47,16 @@ struct DisplayGeometry {
     XMVECTOR virtualTopRight;
     XMVECTOR lidTopLeft;
     XMVECTOR lidTopRight;
-    XMVECTOR lidCenter;
-    XMVECTOR projectedTopLeft;
-    XMVECTOR projectedTopRight;
-    XMFLOAT2 projectedTopLeftUv;
-    XMFLOAT2 projectedTopRightUv;
-    float lidTopBlur;
 };
-
-static XMVECTOR RotateAroundAxis(const XMVECTOR& vector, const XMVECTOR& axis, float angle) {
-    const XMVECTOR unitAxis = XMVector3Normalize(axis);
-    const float cosine = cosf(angle);
-    const float sine = sinf(angle);
-    const XMVECTOR parallel = XMVectorScale(
-        unitAxis,
-        XMVectorGetX(XMVector3Dot(unitAxis, vector)) * (1.0f - cosine));
-    return XMVectorAdd(
-        XMVectorAdd(XMVectorScale(vector, cosine), XMVectorScale(XMVector3Cross(unitAxis, vector), sine)),
-        parallel);
-}
-
-static bool RayPlaneIntersection(
-    const XMVECTOR& rayOrigin,
-    const XMVECTOR& ray,
-    const XMVECTOR& planePoint,
-    const XMVECTOR& planeNormal,
-    XMVECTOR* intersection) {
-    constexpr float epsilon = 1.0e-5f;
-    const float denominator = XMVectorGetX(XMVector3Dot(ray, planeNormal));
-    if (fabsf(denominator) < epsilon)
-        return false;
-
-    const float distance = XMVectorGetX(XMVector3Dot(
-        XMVectorSubtract(planePoint, rayOrigin), planeNormal)) / denominator;
-    if (distance < epsilon)
-        return false;
-
-    *intersection = XMVectorAdd(rayOrigin, XMVectorScale(ray, distance));
-    return true;
-}
 
 static bool BuildDisplayGeometry(float screenHeight, float hingeAngle, DisplayGeometry* geometry) {
     const float screenWidth = 2.0f;
-    const float halfHeight = screenHeight * 0.5f;
-    const XMVECTOR virtualBottomLeft = XMVectorSet(-screenWidth * 0.5f, -halfHeight, 0.0f, 1.0f);
-    const XMVECTOR virtualBottomRight = XMVectorSet(screenWidth * 0.5f, -halfHeight, 0.0f, 1.0f);
-    const XMVECTOR virtualTopLeft = XMVectorSet(-screenWidth * 0.5f, halfHeight, 0.0f, 1.0f);
-    const XMVECTOR virtualTopRight = XMVectorSet(screenWidth * 0.5f, halfHeight, 0.0f, 1.0f);
-
-    const XMVECTOR hingeAxis = XMVector3Normalize(XMVectorSubtract(virtualBottomRight, virtualBottomLeft));
-    const XMVECTOR displayHeight = XMVector3Normalize(XMVectorSubtract(virtualTopLeft, virtualBottomLeft));
-    const XMVECTOR lidHeight = XMVectorScale(
-        RotateAroundAxis(displayHeight, hingeAxis, hingeAngle), screenHeight);
-    const XMVECTOR lidTopLeft = XMVectorAdd(virtualBottomLeft, lidHeight);
-    const XMVECTOR lidTopRight = XMVectorAdd(virtualBottomRight, lidHeight);
-
-    const XMVECTOR head = XMLoadFloat3(&g_headPosition);
-    const XMVECTOR virtualNormal = XMVector3Normalize(XMVector3Cross(
-        XMVectorSubtract(virtualBottomRight, virtualBottomLeft),
-        XMVectorSubtract(virtualTopLeft, virtualBottomLeft)));
-    XMVECTOR projectedTopLeft;
-    XMVECTOR projectedTopRight;
-    if (!RayPlaneIntersection(head, XMVectorSubtract(lidTopLeft, head), virtualBottomLeft, virtualNormal, &projectedTopLeft) ||
-        !RayPlaneIntersection(head, XMVectorSubtract(lidTopRight, head), virtualBottomLeft, virtualNormal, &projectedTopRight))
-        return false;
-
-    const XMVECTOR virtualX = XMVector3Normalize(XMVectorSubtract(virtualBottomRight, virtualBottomLeft));
-    const XMVECTOR virtualY = XMVector3Normalize(XMVectorSubtract(virtualTopLeft, virtualBottomLeft));
-    const float virtualWidth = XMVectorGetX(XMVector3Length(XMVectorSubtract(virtualBottomRight, virtualBottomLeft)));
-    const float virtualHeight = XMVectorGetX(XMVector3Length(XMVectorSubtract(virtualTopLeft, virtualBottomLeft)));
-    const XMVECTOR projectedLeftOffset = XMVectorSubtract(projectedTopLeft, virtualBottomLeft);
-    const XMVECTOR projectedRightOffset = XMVectorSubtract(projectedTopRight, virtualBottomLeft);
-    const XMFLOAT2 projectedTopLeftUv = {
-        XMVectorGetX(XMVector3Dot(projectedLeftOffset, virtualX)) / virtualWidth,
-        1.0f - XMVectorGetX(XMVector3Dot(projectedLeftOffset, virtualY)) / virtualHeight
-    };
-    const XMFLOAT2 projectedTopRightUv = {
-        XMVectorGetX(XMVector3Dot(projectedRightOffset, virtualX)) / virtualWidth,
-        1.0f - XMVectorGetX(XMVector3Dot(projectedRightOffset, virtualY)) / virtualHeight
-    };
-    if (!isfinite(projectedTopLeftUv.x) || !isfinite(projectedTopLeftUv.y) ||
-        !isfinite(projectedTopRightUv.x) || !isfinite(projectedTopRightUv.y))
-        return false;
+    const XMVECTOR virtualBottomLeft = XMVectorSet(-screenWidth * 0.5f, 0.0f, 0.0f, 1.0f);
+    const XMVECTOR virtualBottomRight = XMVectorSet(screenWidth * 0.5f, 0.0f, 0.0f, 1.0f);
+    const XMVECTOR virtualTopLeft = XMVectorSet(-screenWidth * 0.5f, screenHeight, 0.0f, 1.0f);
+    const XMVECTOR virtualTopRight = XMVectorSet(screenWidth * 0.5f, screenHeight, 0.0f, 1.0f);
+    const XMVECTOR lidTopLeft = XMVectorSet(-screenWidth * 0.5f, screenHeight * cosf(hingeAngle), screenHeight * sinf(hingeAngle), 1.0f);
+    const XMVECTOR lidTopRight = XMVectorSet(screenWidth * 0.5f, screenHeight * cosf(hingeAngle), screenHeight * sinf(hingeAngle), 1.0f);
 
     geometry->virtualBottomLeft = virtualBottomLeft;
     geometry->virtualBottomRight = virtualBottomRight;
@@ -136,35 +64,20 @@ static bool BuildDisplayGeometry(float screenHeight, float hingeAngle, DisplayGe
     geometry->virtualTopRight = virtualTopRight;
     geometry->lidTopLeft = lidTopLeft;
     geometry->lidTopRight = lidTopRight;
-    geometry->lidCenter = XMVectorScale(
-        XMVectorAdd(XMVectorAdd(virtualBottomLeft, virtualBottomRight),
-                    XMVectorAdd(lidTopLeft, lidTopRight)), 0.25f);
-    geometry->lidTopBlur = fabsf(XMVectorGetZ(lidTopLeft));
-    geometry->projectedTopLeft = projectedTopLeft;
-    geometry->projectedTopRight = projectedTopRight;
-    geometry->projectedTopLeftUv = projectedTopLeftUv;
-    geometry->projectedTopRightUv = projectedTopRightUv;
     return true;
 }
 
-static void BuildLidVertices(const DisplayGeometry& geometry, Vertex* vertices) {
-    const XMVECTOR positions[] = {
-        geometry.virtualBottomLeft,
-        geometry.virtualBottomRight,
-        geometry.lidTopRight,
-        geometry.lidTopLeft
-    };
+static void BuildFullscreenVertices(Vertex* vertices) {
+    vertices[0].position = { -1.0f, 1.0f, 0.0f };
+    vertices[1].position = { 1.0f, 1.0f, 0.0f };
+    vertices[2].position = { -1.0f, -1.0f, 0.0f };
+    vertices[3].position = { 1.0f, -1.0f, 0.0f };
+    vertices[0].textureCoordinate = { 0.0f, 0.0f };
+    vertices[1].textureCoordinate = { 1.0f, 0.0f };
+    vertices[2].textureCoordinate = { 0.0f, 1.0f };
+    vertices[3].textureCoordinate = { 1.0f, 1.0f };
     for (int index = 0; index < 4; ++index)
-        XMStoreFloat3(reinterpret_cast<XMFLOAT3*>(&vertices[index].position), positions[index]);
-
-    vertices[0].textureCoordinate = { 0.0f, 1.0f };
-    vertices[1].textureCoordinate = { 1.0f, 1.0f };
-    vertices[2].textureCoordinate = { geometry.projectedTopRightUv.x, geometry.projectedTopRightUv.y };
-    vertices[3].textureCoordinate = { geometry.projectedTopLeftUv.x, geometry.projectedTopLeftUv.y };
-    vertices[0].blur = 0.0f;
-    vertices[1].blur = 0.0f;
-    vertices[2].blur = geometry.lidTopBlur;
-    vertices[3].blur = geometry.lidTopBlur;
+        vertices[index].blur = 0.0f;
 }
 
 static void Calibrate() {
@@ -223,7 +136,7 @@ static void CreateQuadPipeline(ID3D11Device* device) {
 }
 
 static void ConfigureQuadPipeline(ID3D11DeviceContext* context) {
-    context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
     context->IASetInputLayout(g_quadResources.inputLayout.Get());
     context->VSSetConstantBuffers(0, 1, g_quadResources.transformBuffer.GetAddressOf());
     context->VSSetShader(g_quadVS.Get(), nullptr, 0);
@@ -266,19 +179,12 @@ static bool PresentQuad(ID3D11DeviceContext* context) {
 
     D3D11_VIEWPORT viewport = { 0, 0, (float)width, (float)height, 0.0f, 1.0f };
     context->RSSetViewports(1, &viewport);
-    float aspect = (float)width / (float)height;
-    float fov = 40.0f;
-    const XMVECTOR head = XMLoadFloat3(&g_headPosition);
-    XMMATRIX proj = XMMatrixPerspectiveFovLH(XMConvertToRadians(fov), aspect, 0.1f, 100.0f);
-    Vertex lidVertices[4] = {};
+    Vertex fullscreenVertices[4] = {};
     DisplayGeometry geometry = {};
     if (!BuildDisplayGeometry(2.0f * g_quadHalfHeight, XMConvertToRadians(g_tiltDeg), &geometry))
         return false;
-    BuildLidVertices(geometry, lidVertices);
-    context->UpdateSubresource(g_quadResources.vertexBuffer.Get(), 0, nullptr, lidVertices, 0, 0);
-
-    XMMATRIX view = XMMatrixLookAtLH(head, geometry.lidCenter, XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
-    XMMATRIX transform = XMMatrixTranspose(view * proj);
+    BuildFullscreenVertices(fullscreenVertices);
+    context->UpdateSubresource(g_quadResources.vertexBuffer.Get(), 0, nullptr, fullscreenVertices, 0, 0);
 
     const float clear[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
     UINT stride = sizeof(Vertex);
@@ -287,26 +193,43 @@ static bool PresentQuad(ID3D11DeviceContext* context) {
     context->OMSetRenderTargets(1, &backRTV, nullptr);
     context->ClearRenderTargetView(backRTV, clear);
 
-    context->UpdateSubresource(g_quadResources.transformBuffer.Get(), 0, nullptr, &transform, 0, 0);
+    struct SceneConstants {
+        XMFLOAT4 headPos;
+        XMFLOAT4 dispOrigin;
+        XMFLOAT4 dispRightAxis;
+        XMFLOAT4 dispUpAxis;
+        XMFLOAT4 dispNormal;
+        XMFLOAT4 lidBL;
+        XMFLOAT4 lidBR;
+        XMFLOAT4 lidTL;
+        XMFLOAT4 lidTR;
+        XMFLOAT4 displayMetrics;
+        XMFLOAT4 blurMetrics;
+        XMFLOAT4 effectMetrics;
+    } sceneConstants = {};
+    sceneConstants.headPos = { g_headPosition.x, g_headPosition.y, g_headPosition.z, 0.0f };
+    sceneConstants.dispOrigin = { -1.0f, 0.0f, 0.0f, 0.0f };
+    sceneConstants.dispRightAxis = { 1.0f, 0.0f, 0.0f, 0.0f };
+    sceneConstants.dispUpAxis = { 0.0f, 1.0f, 0.0f, 0.0f };
+    sceneConstants.dispNormal = { 0.0f, 0.0f, 1.0f, 0.0f };
+    XMStoreFloat4(&sceneConstants.lidBL, geometry.virtualBottomLeft);
+    XMStoreFloat4(&sceneConstants.lidBR, geometry.virtualBottomRight);
+    XMStoreFloat4(&sceneConstants.lidTL, geometry.lidTopLeft);
+    XMStoreFloat4(&sceneConstants.lidTR, geometry.lidTopRight);
+    sceneConstants.displayMetrics = { 2.0f, 2.0f * g_quadHalfHeight, 0.0f, 0.0f };
+    sceneConstants.blurMetrics = { g_blurNear, g_blurFar, g_maxBlurPixels, g_flipV ? 1.0f : 0.0f };
+    sceneConstants.effectMetrics = { g_fadeStrength, 0.0f, 0.0f, 0.0f };
+    context->UpdateSubresource(g_quadResources.transformBuffer.Get(), 0, nullptr, &sceneConstants, 0, 0);
+    context->VSSetConstantBuffers(0, 1, g_quadResources.transformBuffer.GetAddressOf());
+    context->PSSetConstantBuffers(0, 1, g_quadResources.transformBuffer.GetAddressOf());
     ID3D11Buffer* vb = g_quadResources.vertexBuffer.Get();
     context->IASetVertexBuffers(0, 1, &vb, &stride, &offset);
-    context->IASetIndexBuffer(g_quadResources.indexBuffer.Get(), DXGI_FORMAT_R16_UINT, 0);
     context->PSSetShader(g_quadPS.Get(), nullptr, 0);
 
     if (ID3D11ShaderResourceView* desktopSRV = g_desktopCapture.GetShaderResourceView())
     {
-        struct SceneConstants {
-            XMFLOAT4 fadeParams;
-            XMFLOAT4 blurParams;
-            XMFLOAT4 pad[4];
-        } sceneConstants = {};
-        sceneConstants.fadeParams = { g_fadeStart, g_fadeEnd, g_fadeStrength, 0.0f };
-        sceneConstants.blurParams = { g_blurScale, g_flipV ? 1.0f : 0.0f, 0.0f, 0.0f };
-        context->UpdateSubresource(g_quadResources.fadeBuffer.Get(), 0, nullptr, &sceneConstants, 0, 0);
-        context->PSSetConstantBuffers(1, 1, g_quadResources.fadeBuffer.GetAddressOf());
-
         context->PSSetShaderResources(0, 1, &desktopSRV);
-        context->DrawIndexed(6, 0, 0);
+        context->Draw(4, 0);
     }
     context->PSSetShaderResources(0, 0, nullptr);
 
