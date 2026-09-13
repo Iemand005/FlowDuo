@@ -46,8 +46,7 @@ static bool g_highQualityBlur = true;
 
 static bool calibrated = false;
 
-static void ResetDesktopCapture()
-{
+static void ResetDesktopCapture() {
     ID3D11DeviceContext* context = g_graphics.GetContext();
     if (context)
     {
@@ -79,8 +78,7 @@ void ToggleWindowVisible(HWND hwnd, bool visible) {
     SetLayeredWindowAttributes(hwnd, 0, visible ? 255 : 0, LWA_ALPHA);
 }
 
-LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
-{
+LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg)
     {
     case WM_SIZE:
@@ -98,23 +96,18 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     return DefWindowProc(hwnd, msg, wParam, lParam);
 }
 
-static void CheckHr(HRESULT hr)
-{
-    if (FAILED(hr))
-        throw std::runtime_error("HRESULT failed");
+static void CheckHr(HRESULT hr) {
+    if (FAILED(hr)) throw std::runtime_error("HRESULT failed");
 }
 
-static ComPtr<ID3DBlob> CompileShader(const void* source, SIZE_T sourceSize, const char* target)
-{
+static ComPtr<ID3DBlob> CompileShader(const void* source, SIZE_T sourceSize, const char* target) {
     ComPtr<ID3DBlob> blob;
     ComPtr<ID3DBlob> error;
-    CheckHr(D3DCompile(source, sourceSize, nullptr, nullptr, nullptr,
-                      "main", target, 0, 0, &blob, &error));
+    CheckHr(D3DCompile(source, sourceSize, nullptr, nullptr, nullptr, "main", target, 0, 0, &blob, &error));
     return blob;
 }
 
-static ComPtr<ID3DBlob> CompileShaderResource(int resourceId, const char* target)
-{
+static ComPtr<ID3DBlob> CompileShaderResource(int resourceId, const char* target) {
     HMODULE module = GetModuleHandleW(nullptr);
     HRSRC resource = FindResourceW(module, MAKEINTRESOURCEW(resourceId), RT_RCDATA);
     CheckHr(resource ? S_OK : HRESULT_FROM_WIN32(GetLastError()));
@@ -127,8 +120,7 @@ static ComPtr<ID3DBlob> CompileShaderResource(int resourceId, const char* target
     return CompileShader(LockResource(data), size, target);
 }
 
-static void CreateQuadPipeline(ID3D11Device* device)
-{
+static void CreateQuadPipeline(ID3D11Device* device) {
     auto vsBlob = CompileShaderResource(IDR_QUAD_VERTEX, "vs_5_0");
     auto psBlob = CompileShaderResource(IDR_DESKTOP_PIXEL, "ps_5_0");
     auto blurQualityBlob = CompileShaderResource(IDR_BLUR_QUALITY, "ps_5_0");
@@ -142,8 +134,7 @@ static void CreateQuadPipeline(ID3D11Device* device)
     g_graphics.CreateQuadResources(vsBlob.Get(), g_quadResources);
 }
 
-static void UpdateTiltFromHinge()
-{
+static void UpdateTiltFromHinge() {
     if (!g_hingeReader.IsReady())
         return;
 
@@ -168,8 +159,7 @@ static void UpdateTiltFromHinge()
     g_fadeStrength = min(g_tiltDeg / 60, 1);
 }
 
-static bool InitDesktopCapture(ID3D11Device* device)
-{
+static bool InitDesktopCapture(ID3D11Device* device) {
     ComPtr<IDXGIDevice> dxgiDevice;
     CheckHr(device->QueryInterface(IID_PPV_ARGS(&dxgiDevice)));
 
@@ -186,8 +176,7 @@ static bool InitDesktopCapture(ID3D11Device* device)
     return g_duplication;
 }
 
-static bool UpdateDesktopFrame(ID3D11Device* device, ID3D11DeviceContext* context)
-{
+static bool UpdateDesktopFrame(ID3D11Device* device, ID3D11DeviceContext* context) {
     if (!g_duplication && !InitDesktopCapture(device)) return false;
 
     DXGI_OUTDUPL_FRAME_INFO frameInfo = {};
@@ -233,8 +222,7 @@ static bool UpdateDesktopFrame(ID3D11Device* device, ID3D11DeviceContext* contex
     return copiedFrame;
 }
 
-static bool PresentQuad(ID3D11DeviceContext* context)
-{
+static bool PresentQuad(ID3D11DeviceContext* context) {
     ID3D11RenderTargetView* backRTV = g_graphics.GetRenderTargetView();
     if (!backRTV)
         return false;
@@ -345,8 +333,7 @@ static bool PresentQuad(ID3D11DeviceContext* context)
     return true;
 }
 
-int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int)
-{
+int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int) {
     WNDCLASSEXW wc = {};
     wc.cbSize = sizeof(wc);
     wc.lpfnWndProc = WndProc;
