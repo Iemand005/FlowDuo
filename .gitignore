@@ -7,12 +7,9 @@
 /x64/Debug
 *.log,append
 /enc_temp_folder/65268e5b73978a35b075726419644ad/Graphics.cpp
-/LibCubeRenderer/include
-/LibCubeRenderer
 enc_temp_folder
 /FlowDuo/x64/Release/AccelerometerReader.obj
 /FlowDuo/x64/Release
 /x64/Release
 /FlowX16HingeAngleReader
 x64
-LibCubeRenderer
