@@ -238,7 +238,7 @@ static void UpdateTiltFromHinge()
     g_tiltDeg = g_hingeSmooth - 90.0f - g_calibOffset;
 
     g_tiltDeg = max(g_tiltDeg, 0);
-    g_fadeEnd = g_tiltDeg / 90;
+    //g_fadeEnd = g_tiltDeg / 90;
 
     g_blurRadius = g_tiltDeg;
 
@@ -377,7 +377,8 @@ static void PresentQuad(ID3D11Device* device, ID3D11DeviceContext* context, IDXG
 
     XMMATRIX world = XMMatrixScaling(scale, scale, scale) *
                      XMMatrixTranslation(0.0f, scale * g_quadHalfHeight, 0.0f) *
-                     XMMatrixRotationX(XMConvertToRadians(g_tiltDeg)) *
+
+                     XMMatrixRotationX(XMConvertToRadians(g_tiltDeg / 2)) *
                      XMMatrixTranslation(0.0f, -scale * g_quadHalfHeight, 0.0f);
     XMMATRIX view = XMMatrixLookAtLH(XMVectorSet(0.0f, 0.0f, -3.0f, 1.0f),
                                      XMVectorZero(), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
@@ -475,7 +476,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nShowCmd)
     HWND hwnd = CreateWindowExW(
         WS_EX_TOPMOST, wc.lpszClassName, L"FlowDuo",
         WS_OVERLAPPEDWINDOW,
-        CW_USEDEFAULT, CW_USEDEFAULT, 800, 600,
+        CW_USEDEFAULT, CW_USEDEFAULT, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN),
         nullptr, nullptr, hInstance, nullptr);
 
     ShowWindow(hwnd, nShowCmd);
