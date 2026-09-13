@@ -49,6 +49,28 @@ static bool g_highQualityBlur = true;
 
 static bool calibrated = false;
 
+static XMVECTOR TransformPoint(const XMVECTOR& point, const XMMATRIX& transform) {
+    return XMVector3TransformCoord(point, transform);
+}
+
+static void BuildVirtualDisplayVertices(float halfHeight, Vertex* vertices) {
+    const XMMATRIX calibratedWorld = XMMatrixIdentity();
+    const XMVECTOR bottomLeft = TransformPoint(XMVectorSet(-1.0f, -halfHeight, 0.0f, 1.0f), calibratedWorld);
+    const XMVECTOR bottomRight = TransformPoint(XMVectorSet(1.0f, -halfHeight, 0.0f, 1.0f), calibratedWorld);
+    const XMVECTOR topLeftReference = TransformPoint(XMVectorSet(-1.0f, halfHeight, 0.0f, 1.0f), calibratedWorld);
+    const XMVECTOR topRightReference = TransformPoint(XMVectorSet(1.0f, halfHeight, 0.0f, 1.0f), calibratedWorld);
+
+    XMStoreFloat3(&vertices[0].position, bottomLeft);
+    XMStoreFloat3(&vertices[1].position, bottomRight);
+    XMStoreFloat3(&vertices[2].position, topRightReference);
+    XMStoreFloat3(&vertices[3].position, topLeftReference);
+
+    vertices[0].textureCoordinate = { 0.0f, 1.0f };
+    vertices[1].textureCoordinate = { 1.0f, 1.0f };
+    vertices[2].textureCoordinate = { 1.0f, 0.0f };
+    vertices[3].textureCoordinate = { 0.0f, 0.0f };
+}
+
 static void Calibrate() {
     if (!g_hingeReader.IsReady()) return;
     calibrated = true;
@@ -167,14 +189,11 @@ static bool PresentQuad(ID3D11DeviceContext* context) {
     context->RSSetViewports(1, &viewport);
     float aspect = (float)width / (float)height;
     float fov = 40.0f;
-    float tiltRadians = XMConvertToRadians(g_tiltDeg);
+    Vertex virtualVertices[4] = {};
+    BuildVirtualDisplayVertices(g_quadHalfHeight, virtualVertices);
+    context->UpdateSubresource(g_quadResources.vertexBuffer.Get(), 0, nullptr, virtualVertices, 0, 0);
 
-    // The quad's top edge is the physical hinge axis. Its corners are
-    // transformed by the actual hinge rotation before projection.
-    XMMATRIX world =
-        XMMatrixTranslation(0.0f, -g_quadHalfHeight, 0.0f) *
-        XMMatrixRotationX(tiltRadians) *
-        XMMatrixTranslation(0.0f, g_quadHalfHeight, 0.0f);
+    XMMATRIX world = XMMatrixIdentity();
     XMMATRIX view = XMMatrixLookAtLH(XMVectorSet(0.0f, 0.0f, -3.0f, 1.0f), XMVectorZero(), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
     XMMATRIX proj = XMMatrixPerspectiveFovLH(XMConvertToRadians(fov), aspect, 0.1f, 100.0f);
     XMMATRIX transform = XMMatrixTranspose(world * view * proj);
