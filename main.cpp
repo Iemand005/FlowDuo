@@ -41,14 +41,8 @@ static ComPtr<ID3D11Buffer> g_blurCB;
 static ComPtr<ID3D11Buffer> g_blurVB;
 static ComPtr<ID3D11Buffer> g_blurIB;
 
-static ComPtr<ID3D11Texture2D> g_sceneRT;
-static ComPtr<ID3D11RenderTargetView> g_sceneRTV;
-static ComPtr<ID3D11ShaderResourceView> g_sceneSRV;
-static ComPtr<ID3D11Texture2D> g_blurRT;
-static ComPtr<ID3D11RenderTargetView> g_blurRTV;
-static ComPtr<ID3D11ShaderResourceView> g_blurSRV;
-static UINT g_sceneW = 0;
-static UINT g_sceneH = 0;
+static Graphics::RenderTarget g_sceneTarget;
+static Graphics::RenderTarget g_blurTarget;
 
 static float g_fadeStart = 0.2f;
 static float g_fadeEnd = 1.0f;
@@ -325,60 +319,27 @@ static void UpdateDesktopFrame(ID3D11Device* device, ID3D11DeviceContext* contex
     g_duplication->ReleaseFrame();
 }
 
-static void EnsureSceneRT(ID3D11Device* device, UINT width, UINT height)
-{
-    if (g_sceneRT && g_sceneW == width && g_sceneH == height)
-        return;
-
-    g_sceneRT.Reset();
-    g_sceneRTV.Reset();
-    g_sceneSRV.Reset();
-    g_blurRT.Reset();
-    g_blurRTV.Reset();
-    g_blurSRV.Reset();
-
-    D3D11_TEXTURE2D_DESC desc = {};
-    desc.Width = width;
-    desc.Height = height;
-    desc.MipLevels = 1;
-    desc.ArraySize = 1;
-    desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    desc.SampleDesc.Count = 1;
-    desc.Usage = D3D11_USAGE_DEFAULT;
-    desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
-    CheckHr(device->CreateTexture2D(&desc, nullptr, &g_sceneRT));
-    CheckHr(device->CreateRenderTargetView(g_sceneRT.Get(), nullptr, &g_sceneRTV));
-    CheckHr(device->CreateShaderResourceView(g_sceneRT.Get(), nullptr, &g_sceneSRV));
-
-    CheckHr(device->CreateTexture2D(&desc, nullptr, &g_blurRT));
-    CheckHr(device->CreateRenderTargetView(g_blurRT.Get(), nullptr, &g_blurRTV));
-    CheckHr(device->CreateShaderResourceView(g_blurRT.Get(), nullptr, &g_blurSRV));
-
-    g_sceneW = width;
-    g_sceneH = height;
-}
-
-static void PresentQuad(ID3D11Device* device, ID3D11DeviceContext* context)
+static void PresentQuad(ID3D11DeviceContext* context)
 {
     IDXGISwapChain* swapChain = g_graphics.GetSwapChain();
     ID3D11RenderTargetView* backRTV = g_graphics.GetRenderTargetView();
     if (!backRTV)
         return;
 
-    ComPtr<ID3D11Texture2D> backBuffer;
-    if (FAILED(swapChain->GetBuffer(0, IID_PPV_ARGS(&backBuffer))))
+    UINT width = 0;
+    UINT height = 0;
+    g_graphics.GetBackBufferSize(&width, &height);
+    if (width == 0 || height == 0)
         return;
 
-    D3D11_TEXTURE2D_DESC bbDesc;
-    backBuffer->GetDesc(&bbDesc);
+    g_graphics.EnsureRenderTarget(g_sceneTarget, width, height);
+    g_graphics.EnsureRenderTarget(g_blurTarget, width, height);
 
-    EnsureSceneRT(device, bbDesc.Width, bbDesc.Height);
-
-    D3D11_VIEWPORT viewport = { 0, 0, (float)bbDesc.Width, (float)bbDesc.Height, 0.0f, 1.0f };
+    D3D11_VIEWPORT viewport = { 0, 0, (float)width, (float)height, 0.0f, 1.0f };
     context->RSSetViewports(1, &viewport);
     context->RSSetState(g_quadRaster.Get());
     
-    float aspect = (float)bbDesc.Width / (float)bbDesc.Height;
+    float aspect = (float)width / (float)height;
     float fov = 40.0f;
     float visibleH = 2.0f * 3.0f * tanf(XMConvertToRadians(fov / 2.0f));
     float visibleW = visibleH * aspect;
@@ -410,8 +371,8 @@ static void PresentQuad(ID3D11Device* device, ID3D11DeviceContext* context)
     context->VSSetShader(g_quadVS.Get(), nullptr, 0);
     context->PSSetSamplers(0, 1, g_quadSampler.GetAddressOf());
 
-    context->OMSetRenderTargets(1, g_sceneRTV.GetAddressOf(), nullptr);
-    context->ClearRenderTargetView(g_sceneRTV.Get(), clear);
+    context->OMSetRenderTargets(1, g_sceneTarget.renderTargetView.GetAddressOf(), nullptr);
+    context->ClearRenderTargetView(g_sceneTarget.renderTargetView.Get(), clear);
 
     context->UpdateSubresource(g_transformCB.Get(), 0, nullptr, &transform, 0, 0);
     ID3D11Buffer* vb = g_quadVB.Get();
@@ -437,11 +398,11 @@ static void PresentQuad(ID3D11Device* device, ID3D11DeviceContext* context)
     context->IASetVertexBuffers(0, 1, &vb, &stride, &offset);
     context->IASetIndexBuffer(g_blurIB.Get(), DXGI_FORMAT_R16_UINT, 0);
 
-    context->OMSetRenderTargets(1, g_blurRTV.GetAddressOf(), nullptr);
+    context->OMSetRenderTargets(1, g_blurTarget.renderTargetView.GetAddressOf(), nullptr);
     context->PSSetShader(g_blurPS.Get(), nullptr, 0);
 
-    const float texelX = 1.0f / (float)g_sceneW;
-    const float texelY = 1.0f / (float)g_sceneH;
+    const float texelX = 1.0f / (float)width;
+    const float texelY = 1.0f / (float)height;
 
     const XMFLOAT4 blurRanges(g_blurRadiusMin, g_blurRadius, 0.0f, 0.0f);
 
@@ -450,7 +411,7 @@ static void PresentQuad(ID3D11Device* device, ID3D11DeviceContext* context)
     struct { XMFLOAT4 a; XMFLOAT4 b; } blurHB = { blurH, blurH2 };
     context->UpdateSubresource(g_blurCB.Get(), 0, nullptr, &blurHB, 0, 0);
     context->PSSetConstantBuffers(1, 1, g_blurCB.GetAddressOf());
-    ID3D11ShaderResourceView* sceneSRV = g_sceneSRV.Get();
+    ID3D11ShaderResourceView* sceneSRV = g_sceneTarget.shaderResourceView.Get();
     context->PSSetShaderResources(0, 1, &sceneSRV);
     context->DrawIndexed(6, 0, 0);
     context->PSSetShaderResources(0, 0, nullptr);
@@ -461,7 +422,7 @@ static void PresentQuad(ID3D11Device* device, ID3D11DeviceContext* context)
     const XMFLOAT4 blurV(texelX, texelY, 1.0f, 0.0f);
     struct { XMFLOAT4 a; XMFLOAT4 b; } blurVB = { blurV, blurRanges };
     context->UpdateSubresource(g_blurCB.Get(), 0, nullptr, &blurVB, 0, 0);
-    ID3D11ShaderResourceView* blurSRV = g_blurSRV.Get();
+    ID3D11ShaderResourceView* blurSRV = g_blurTarget.shaderResourceView.Get();
     context->PSSetShaderResources(0, 1, &blurSRV);
     context->DrawIndexed(6, 0, 0);
     context->PSSetShaderResources(0, 0, nullptr);
@@ -527,6 +488,6 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nShowCmd)
 
          if (g_tiltDeg > 0) ToggleWindowVisible(hwnd, true);
         else ToggleWindowVisible(hwnd, false);
-        PresentQuad(device, context);
+        PresentQuad(context);
     }
 }
