@@ -371,9 +371,10 @@ static void PresentQuad(ID3D11Device* device, ID3D11DeviceContext* context, IDXG
     D3D11_VIEWPORT viewport = { 0, 0, (float)bbDesc.Width, (float)bbDesc.Height, 0.0f, 1.0f };
     context->RSSetViewports(1, &viewport);
     context->RSSetState(g_quadRaster.Get());
-
+    
     float aspect = (float)bbDesc.Width / (float)bbDesc.Height;
-    float visibleH = 2.0f * 3.0f * tanf(XMConvertToRadians(30.0f));
+    float fov = 30.0f;
+    float visibleH = 2.0f * 3.0f * tanf(XMConvertToRadians(fov / 2.0f));
     float visibleW = visibleH * aspect;
     float scale = max(visibleW / 2.0f, visibleH / (2.0f * g_quadHalfHeight));
 
@@ -390,7 +391,6 @@ static void PresentQuad(ID3D11Device* device, ID3D11DeviceContext* context, IDXG
         XMMatrixTranslation(0.0f, -(scale - 1.0f) * g_quadHalfHeight, 0.0f);
     XMMATRIX view = XMMatrixLookAtLH(XMVectorSet(0.0f, 0.0f, -3.0f, 1.0f),
                                      XMVectorZero(), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
-    float fov = 30.0f;
     XMMATRIX proj = XMMatrixPerspectiveFovLH(XMConvertToRadians(fov), aspect, 0.1f, 100.0f);
     XMMATRIX transform = XMMatrixTranspose(world * view * proj);
 
