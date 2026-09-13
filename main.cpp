@@ -56,8 +56,6 @@ static float g_effectResolutionScale = 0.7f;
 
 static bool calibrated = false;
 
-static bool trueHide = false;
-
 static void ResetDesktopCapture()
 {
     ID3D11DeviceContext* context = g_graphics.GetContext();
@@ -89,8 +87,6 @@ void ToggleWindowVisible(HWND hwnd, bool visible) {
     if (!visible)
         ResetDesktopCapture();
     SetLayeredWindowAttributes(hwnd, 0, visible ? 255 : 0, LWA_ALPHA);
-    if (trueHide)
-        ShowWindow(hwnd, visible ? SW_SHOW : SW_HIDE);
 }
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -521,13 +517,9 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nShowCmd)
             continue;
         }
 
-        if (!g_windowVisible)
-            ShowWindow(hwnd, SW_HIDE);
-
         bool hasFreshFrame = UpdateDesktopFrame(device, context);
         if (!g_windowVisible && !hasFreshFrame)
         {
-            ShowWindow(hwnd, SW_HIDE);
             Sleep(1);
             continue;
         }
@@ -535,7 +527,6 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nShowCmd)
         bool presented = PresentQuad(context);
         if (presented)
         {
-            ShowWindow(hwnd, SW_SHOW);
             ToggleWindowVisible(hwnd, true);
         }
     }
