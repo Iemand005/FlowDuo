@@ -479,9 +479,10 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nShowCmd)
         GetSystemMetrics(SM_CXSCREEN),
         GetSystemMetrics(SM_CYSCREEN),
         nullptr, nullptr, hInstance, nullptr);*/
+    BOOL borderless = true;
     HWND hwnd = CreateWindowExW(
-        WS_EX_TOPMOST, wc.lpszClassName, L"FlowDuo",
-        WS_OVERLAPPEDWINDOW,
+        WS_EX_TOPMOST | WS_EX_TOOLWINDOW, wc.lpszClassName, L"FlowDuo",
+        borderless ? WS_POPUP : WS_OVERLAPPEDWINDOW,
         0, 0,
         GetSystemMetrics(SM_CXSCREEN),
         GetSystemMetrics(SM_CYSCREEN),
