@@ -378,13 +378,7 @@ static void PresentQuad(ID3D11Device* device, ID3D11DeviceContext* context, IDXG
     float scaleMulti = g_tiltDeg / 90;
     float scaleY = scale * (1 + scaleMulti) * 1;
 
-    XMMATRIX world =
-    XMMatrixTranslation(0.0f, -scale * g_quadHalfHeight, 0.0f) *
-    XMMatrixScaling(scale, scaleY, scale) *
-    XMMatrixTranslation(0.0f, scale * g_quadHalfHeight, 0.0f) *
-    XMMatrixTranslation(0.0f, scale * g_quadHalfHeight, 0.0f) *
-    XMMatrixRotationX(XMConvertToRadians(g_tiltDeg / 2)) *
-    XMMatrixTranslation(0.0f, -scale * g_quadHalfHeight, 0.0f);
+    XMMATRIX world = XMMatrixScaling(scale, scaleY, scale) * XMMatrixTranslation(0.0f, scale * g_quadHalfHeight, 0.0f) * XMMatrixRotationX(XMConvertToRadians(g_tiltDeg / 2)) * XMMatrixTranslation(0.0f, -scale * g_quadHalfHeight, 0.0f);
     XMMATRIX view = XMMatrixLookAtLH(XMVectorSet(0.0f, 0.0f, -3.0f, 1.0f),
                                      XMVectorZero(), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
     XMMATRIX proj = XMMatrixPerspectiveFovLH(XMConvertToRadians(60.0f), aspect, 0.1f, 100.0f);
