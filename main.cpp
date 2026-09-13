@@ -300,6 +300,12 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int) {
         }
 
         bool hasFreshFrame = g_desktopCapture.Update(device, context);
+        if (!g_windowVisible && !hasFreshFrame)
+        {
+            Sleep(1);
+            continue;
+        }
+
         if (hasFreshFrame)
         {
             float aspectRatio = g_desktopCapture.GetAspectRatio();
@@ -308,11 +314,6 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int) {
                 g_quadHalfHeight = 1.0f / aspectRatio;
                 g_graphics.CreateQuadVertexBuffer(2.0f, 2.0f * g_quadHalfHeight, g_quadResources.vertexBuffer);
             }
-        }
-        if (!g_windowVisible && !hasFreshFrame)
-        {
-            Sleep(1);
-            continue;
         }
 
         bool presented = PresentQuad(context);
