@@ -239,7 +239,8 @@ static void UpdateTiltFromHinge()
 
     g_tiltDeg = max(g_tiltDeg, 0);
 
-    if (g_tiltDeg > 0) ToggleWindowVisible(hwnd)
+    if (g_tiltDeg > 0) ToggleWindowVisible(hwnd, true);
+    else ToggleWindowVisible(hwnd, false);
     //g_fadeEnd = g_tiltDeg / 90;
 
     g_blurRadius = g_tiltDeg;
