@@ -5,7 +5,6 @@
 
 #include <stdexcept>
 #include <cmath>
-#include <cassert>
 
 using namespace CubeRenderer;
 using namespace Microsoft::WRL;
@@ -50,29 +49,12 @@ static bool g_highQualityBlur = true;
 
 static bool calibrated = false;
 
-static XMVECTOR GetPhysicalTop(float tiltRadians, const XMVECTOR& hinge, const XMVECTOR& top) {
-    return XMVectorAdd(hinge, XMVector3TransformNormal(
-        XMVectorSubtract(top, hinge), XMMatrixRotationX(-tiltRadians)));
-}
-
-static XMVECTOR GetVertexPosition(const Vertex& vertex) {
-    return XMVectorSet(vertex.position.x, vertex.position.y, vertex.position.z, 1.0f);
-}
-
-static float ProjectedEdgeWidth(const XMVECTOR& left, const XMVECTOR& right, const XMMATRIX& view, const XMMATRIX& projection) {
-    const XMMATRIX viewProjection = view * projection;
-    const XMVECTOR projectedLeft = XMVector4Transform(left, viewProjection);
-    const XMVECTOR projectedRight = XMVector4Transform(right, viewProjection);
-    const float leftX = XMVectorGetX(projectedLeft) / XMVectorGetW(projectedLeft);
-    const float rightX = XMVectorGetX(projectedRight) / XMVectorGetW(projectedRight);
-    return fabsf(rightX - leftX);
-}
-
 static void BuildVirtualDisplayVertices(
     float viewportWidth,
     float viewportHeight,
     const XMMATRIX& view,
     const XMMATRIX& projection,
+    float tiltRadians,
     Vertex* vertices) {
     const XMMATRIX calibratedWorld = XMMatrixIdentity();
     const XMVECTOR referenceScreenPoint = XMVector3Project(
@@ -132,11 +114,19 @@ static void BuildVirtualDisplayVertices(
         view,
         calibratedWorld);
 
+    const XMMATRIX hingeRotation = XMMatrixRotationX(-tiltRadians);
+    const XMVECTOR topLeft = XMVectorAdd(
+        bottomLeft,
+        XMVector3TransformNormal(XMVectorSubtract(topLeftReference, bottomLeft), hingeRotation));
+    const XMVECTOR topRight = XMVectorAdd(
+        bottomRight,
+        XMVector3TransformNormal(XMVectorSubtract(topRightReference, bottomRight), hingeRotation));
+
     XMFLOAT3 positions[4] = {};
     XMStoreFloat3(&positions[0], bottomLeft);
     XMStoreFloat3(&positions[1], bottomRight);
-    XMStoreFloat3(&positions[2], topRightReference);
-    XMStoreFloat3(&positions[3], topLeftReference);
+    XMStoreFloat3(&positions[2], topRight);
+    XMStoreFloat3(&positions[3], topLeft);
     for (int index = 0; index < 4; ++index) {
         vertices[index].position.x = positions[index].x;
         vertices[index].position.y = positions[index].y;
@@ -270,24 +260,16 @@ static bool PresentQuad(ID3D11DeviceContext* context) {
     XMMATRIX view = XMMatrixLookAtLH(XMVectorSet(0.0f, 0.0f, -3.0f, 1.0f), XMVectorZero(), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
     XMMATRIX proj = XMMatrixPerspectiveFovLH(XMConvertToRadians(fov), aspect, 0.1f, 100.0f);
     Vertex virtualVertices[4] = {};
-    BuildVirtualDisplayVertices((float)effectWidth, (float)effectHeight, view, proj, virtualVertices);
+    BuildVirtualDisplayVertices(
+        (float)effectWidth,
+        (float)effectHeight,
+        view,
+        proj,
+        XMConvertToRadians(g_tiltDeg),
+        virtualVertices);
     context->UpdateSubresource(g_quadResources.vertexBuffer.Get(), 0, nullptr, virtualVertices, 0, 0);
 
     XMMATRIX world = XMMatrixIdentity();
-
-#ifdef _DEBUG
-    if (g_tiltDeg > 0.001f) {
-        const float tiltRadians = XMConvertToRadians(g_tiltDeg);
-        const XMVECTOR physicalTopLeft = GetPhysicalTop(
-            tiltRadians, GetVertexPosition(virtualVertices[0]), GetVertexPosition(virtualVertices[3]));
-        const XMVECTOR physicalTopRight = GetPhysicalTop(
-            tiltRadians, GetVertexPosition(virtualVertices[1]), GetVertexPosition(virtualVertices[2]));
-        const float virtualTopWidth = ProjectedEdgeWidth(
-            GetVertexPosition(virtualVertices[3]), GetVertexPosition(virtualVertices[2]), view, proj);
-        const float physicalTopWidth = ProjectedEdgeWidth(physicalTopLeft, physicalTopRight, view, proj);
-        assert(virtualTopWidth < physicalTopWidth);
-    }
-#endif
 
     XMMATRIX transform = XMMatrixTranspose(world * view * proj);
 
