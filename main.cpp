@@ -51,7 +51,7 @@ static float g_fadeStrength = 0.0f;
 static float g_blurRadius = 20.0f;
 static float g_blurRadiusMultiplier = 2.0f;
 static float g_blurRadiusMin = 0.0f;
-static DWORD g_hingeSampleIntervalMs = 16;
+static DWORD g_hingeSampleIntervalMs = 4;
 
 static bool calibrated = false;
 
