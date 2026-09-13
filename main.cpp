@@ -489,13 +489,6 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nShowCmd)
     INITCOMMONCONTROLSEX icc = { sizeof(icc), ICC_BAR_CLASSES };
     InitCommonControlsEx(&icc);
 
-    g_tiltSlider = CreateWindowExW(
-        0, TRACKBAR_CLASS, L"tilt", WS_CHILD | WS_VISIBLE | TBS_AUTOTICKS,
-        8, 8, 220, 32, hwnd, (HMENU)1, hInstance, nullptr);
-    SendMessageW(g_tiltSlider, TBM_SETRANGEMIN, TRUE, 0);
-    SendMessageW(g_tiltSlider, TBM_SETRANGEMAX, TRUE, 90);
-    SendMessageW(g_tiltSlider, TBM_SETPOS, TRUE, (LPARAM)(int)g_tiltDeg);
-
     g_graphics.Init(hwnd);
     g_hingeReader.Init();
     g_hingeReader.useRawAccelerometer = true;
