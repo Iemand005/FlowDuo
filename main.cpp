@@ -57,6 +57,14 @@ static float g_fadeStrength = 1.0f;
 float g_blurRadius = 20.0f;
 float g_blurRadiusMin = 0.0f;
 
+static void Calibrate(HWND hwnd) {
+    if (!g_hingeReader.IsReady()) return;
+    g_calibOffset = g_hingeSmooth - 90.0f;
+    WCHAR buf[64] = {};
+    wsprintfW(buf, L"FlowDuo - hinge %.0f deg (space=calibrate)", g_hingeSmooth);
+    SetWindowTextW(hwnd, buf);
+}
+
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     switch (msg)
@@ -78,14 +86,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         return 0;
     }
     return DefWindowProc(hwnd, msg, wParam, lParam);
-}
-
-static void Calibrate(HWND hwnd) {
-    if (!g_hingeReader.IsReady()) return;
-    g_calibOffset = g_hingeSmooth - 90.0f;
-    WCHAR buf[64] = {};
-    wsprintfW(buf, L"FlowDuo - hinge %.0f deg (space=calibrate)", g_hingeSmooth);
-    SetWindowTextW(hwnd, buf);
 }
 
 static void CheckHr(HRESULT hr)
