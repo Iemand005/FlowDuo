@@ -13,6 +13,7 @@ using namespace Microsoft::WRL;
 
 static Graphics g_graphics;
 static bool g_graphicsReady = false;
+static bool g_windowVisible = false;
 
 static float g_tiltDeg = 0.0f;
 
@@ -63,11 +64,11 @@ static void Calibrate(HWND hwnd) {
 }
 
 void ToggleWindowVisible(HWND hwnd, bool visible) {
-    bool trueHide = true;
-    if (trueHide) ShowWindow(hwnd, visible ? SW_SHOW : SW_HIDE);
-    else {
-        SetLayeredWindowAttributes(hwnd, 0, visible ? 255 : 0, LWA_ALPHA);
-    };
+    if (g_windowVisible == visible)
+        return;
+
+    g_windowVisible = visible;
+    SetLayeredWindowAttributes(hwnd, 0, visible ? 255 : 0, LWA_ALPHA);
 }
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -464,8 +465,6 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nShowCmd)
     ID3D11DeviceContext* context = g_graphics.GetContext();
 
     CreateQuadPipeline(device);
-    InitDesktopCapture(device);
-
     g_graphicsReady = true;
 
     while (true) {
@@ -480,12 +479,16 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nShowCmd)
 
         if (!calibrated) Calibrate(hwnd);
 
-        UpdateDesktopFrame(device, context);
-
         UpdateTiltFromHinge();
 
-         if (g_tiltDeg > 0) ToggleWindowVisible(hwnd, true);
-        else ToggleWindowVisible(hwnd, false);
+        ToggleWindowVisible(hwnd, g_tiltDeg > 0.0f);
+        if (!g_windowVisible)
+        {
+            Sleep(50);
+            continue;
+        }
+
+        UpdateDesktopFrame(device, context);
         PresentQuad(context);
     }
 }
