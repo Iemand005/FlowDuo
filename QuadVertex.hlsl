@@ -14,13 +14,6 @@ cbuffer SceneCB : register(b0)
     float4 effectMetrics;
 };
 
-struct VSIn
-{
-    float3 pos : POSITION;
-    float2 uv : TEXCOORD0;
-    float blur : TEXCOORD1;
-};
-
 struct VSOut
 {
     float4 pos : SV_POSITION;
@@ -28,10 +21,10 @@ struct VSOut
     float3 lidWorld : TEXCOORD1;
 };
 
-VSOut main(VSIn i)
+VSOut main(uint vertexId : SV_VertexID)
 {
     VSOut o;
-    float2 st = i.uv;
+    float2 st = float2(vertexId & 1, vertexId >> 1);
     o.pos = float4(st * float2(2.0, -2.0) + float2(-1.0, 1.0), 0.0, 1.0);
     float3 bottom = lerp(lidBL.xyz, lidBR.xyz, st.x);
     float3 top = lerp(lidTL.xyz, lidTR.xyz, st.x);

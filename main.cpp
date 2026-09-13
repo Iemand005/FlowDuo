@@ -137,7 +137,7 @@ static void CreateQuadPipeline(ID3D11Device* device) {
 
 static void ConfigureQuadPipeline(ID3D11DeviceContext* context) {
     context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-    context->IASetInputLayout(g_quadResources.inputLayout.Get());
+    context->IASetInputLayout(nullptr);
     context->VSSetConstantBuffers(0, 1, g_quadResources.transformBuffer.GetAddressOf());
     context->VSSetShader(g_quadVS.Get(), nullptr, 0);
     context->PSSetSamplers(0, 1, g_quadResources.sampler.GetAddressOf());
@@ -187,9 +187,6 @@ static bool PresentQuad(ID3D11DeviceContext* context) {
     context->UpdateSubresource(g_quadResources.vertexBuffer.Get(), 0, nullptr, fullscreenVertices, 0, 0);
 
     const float clear[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
-    UINT stride = sizeof(Vertex);
-    UINT offset = 0;
-
     context->OMSetRenderTargets(1, &backRTV, nullptr);
     context->ClearRenderTargetView(backRTV, clear);
 
@@ -222,8 +219,6 @@ static bool PresentQuad(ID3D11DeviceContext* context) {
     context->UpdateSubresource(g_quadResources.transformBuffer.Get(), 0, nullptr, &sceneConstants, 0, 0);
     context->VSSetConstantBuffers(0, 1, g_quadResources.transformBuffer.GetAddressOf());
     context->PSSetConstantBuffers(0, 1, g_quadResources.transformBuffer.GetAddressOf());
-    ID3D11Buffer* vb = g_quadResources.vertexBuffer.Get();
-    context->IASetVertexBuffers(0, 1, &vb, &stride, &offset);
     context->PSSetShader(g_quadPS.Get(), nullptr, 0);
 
     if (ID3D11ShaderResourceView* desktopSRV = g_desktopCapture.GetShaderResourceView())
