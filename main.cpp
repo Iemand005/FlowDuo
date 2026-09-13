@@ -71,8 +71,9 @@ void ToggleWindowVisible(HWND hwnd, bool visible) {
         return;
 
     g_windowVisible = visible;
-    if (trueHide) ShowWindow(hwnd, visible ? SW_SHOW : SW_HIDE);
-    else SetLayeredWindowAttributes(hwnd, 0, visible ? 255 : 0, LWA_ALPHA);
+    SetLayeredWindowAttributes(hwnd, 0, visible ? 255 : 0, LWA_ALPHA);
+    if (trueHide)
+        ShowWindow(hwnd, visible ? SW_SHOW : SW_HIDE);
 }
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -328,17 +329,17 @@ static bool UpdateDesktopFrame(ID3D11Device* device, ID3D11DeviceContext* contex
     return copiedFrame;
 }
 
-static void PresentQuad(ID3D11DeviceContext* context)
+static bool PresentQuad(ID3D11DeviceContext* context)
 {
     ID3D11RenderTargetView* backRTV = g_graphics.GetRenderTargetView();
     if (!backRTV)
-        return;
+        return false;
 
     UINT width = 0;
     UINT height = 0;
     g_graphics.GetBackBufferSize(&width, &height);
     if (width == 0 || height == 0)
-        return;
+        return false;
 
     g_graphics.EnsureRenderTarget(g_sceneTarget, width, height);
     g_graphics.EnsureRenderTarget(g_blurTarget, width, height);
@@ -436,6 +437,7 @@ static void PresentQuad(ID3D11DeviceContext* context)
     context->PSSetShaderResources(0, 0, nullptr);
 
     g_graphics.Present();
+    return true;
 }
 
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nShowCmd)
@@ -498,14 +500,22 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nShowCmd)
             continue;
         }
 
+        if (!g_windowVisible)
+            ShowWindow(hwnd, SW_HIDE);
+
         bool hasFreshFrame = UpdateDesktopFrame(device, context);
         if (!g_windowVisible && !hasFreshFrame)
         {
+            ShowWindow(hwnd, SW_HIDE);
             Sleep(1);
             continue;
         }
 
-        PresentQuad(context);
-        ToggleWindowVisible(hwnd, true);
+        bool presented = PresentQuad(context);
+        if (presented)
+        {
+            ToggleWindowVisible(hwnd, true);
+            ShowWindow(hwnd, SW_SHOW);
+        }
     }
 }
