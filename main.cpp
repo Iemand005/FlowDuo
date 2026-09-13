@@ -232,7 +232,8 @@ static void UpdateTiltFromHinge()
     if (FAILED(g_hingeReader.GetHingeAngleFloat(&hinge)))
         return;
 
-    g_hingeSmooth += 0.15f * ((float)hinge - g_hingeSmooth);
+    float smoothAlpha = 0.5f;
+    g_hingeSmooth += smoothAlpha * ((float)hinge - g_hingeSmooth);
     g_tiltDeg = g_hingeSmooth - 90.0f - g_calibOffset;
 
     g_tiltDeg = max(g_tiltDeg, 0);
