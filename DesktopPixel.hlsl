@@ -16,6 +16,8 @@ struct VSOut
 float4 main(VSOut i) : SV_TARGET
 {
     float2 uv = i.uv;
+    if (blurParams.y > 0.5f)
+        uv.y = 1.0f - uv.y;
     float radius = i.blur * blurParams.x;
 
     const int lobes = 4;

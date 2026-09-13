@@ -33,6 +33,7 @@ static float g_fadeStart = 0.2f;
 static float g_fadeEnd = 1.0f;
 static float g_fadeStrength = 0.0f;
 static float g_blurScale = 0.08f;
+static bool g_flipV = false;
 static DWORD g_hingeSampleIntervalMs = 1;
 static UINT g_presentSyncInterval = 1;
 static XMFLOAT3 g_headPosition = { 0.0f, 0.0f, -3.0f };
@@ -196,6 +197,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         return 0;
     case WM_KEYDOWN:
         if (wParam == VK_SPACE) Calibrate();
+        if (wParam == 'F') g_flipV = !g_flipV;
         return 0;
     case WM_MOUSEACTIVATE:
         return MA_NOACTIVATE;
@@ -299,7 +301,7 @@ static bool PresentQuad(ID3D11DeviceContext* context) {
             XMFLOAT4 pad[4];
         } sceneConstants = {};
         sceneConstants.fadeParams = { g_fadeStart, g_fadeEnd, g_fadeStrength, 0.0f };
-        sceneConstants.blurParams = { g_blurScale, 0.0f, 0.0f, 0.0f };
+        sceneConstants.blurParams = { g_blurScale, g_flipV ? 1.0f : 0.0f, 0.0f, 0.0f };
         context->UpdateSubresource(g_quadResources.fadeBuffer.Get(), 0, nullptr, &sceneConstants, 0, 0);
         context->PSSetConstantBuffers(1, 1, g_quadResources.fadeBuffer.GetAddressOf());
 
