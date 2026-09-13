@@ -354,16 +354,16 @@ static void EnsureSceneRT(ID3D11Device* device, UINT width, UINT height)
 
 static void PresentQuad(ID3D11Device* device, ID3D11DeviceContext* context, IDXGISwapChain* swapChain)
 {
+    ID3D11RenderTargetView* backRTV = g_graphics.GetRenderTargetView();
+    if (!backRTV)
+        return;
+
     ComPtr<ID3D11Texture2D> backBuffer;
     if (FAILED(swapChain->GetBuffer(0, IID_PPV_ARGS(&backBuffer))))
         return;
 
     D3D11_TEXTURE2D_DESC bbDesc;
     backBuffer->GetDesc(&bbDesc);
-
-    ComPtr<ID3D11RenderTargetView> backRTV;
-    if (FAILED(device->CreateRenderTargetView(backBuffer.Get(), nullptr, &backRTV)))
-        return;
 
     EnsureSceneRT(device, bbDesc.Width, bbDesc.Height);
 
@@ -448,8 +448,8 @@ static void PresentQuad(ID3D11Device* device, ID3D11DeviceContext* context, IDXG
     context->DrawIndexed(6, 0, 0);
     context->PSSetShaderResources(0, 0, nullptr);
 
-    context->OMSetRenderTargets(1, backRTV.GetAddressOf(), nullptr);
-    context->ClearRenderTargetView(backRTV.Get(), clear);
+    context->OMSetRenderTargets(1, &backRTV, nullptr);
+    context->ClearRenderTargetView(backRTV, clear);
 
     const XMFLOAT4 blurV(texelX, texelY, 1.0f, 0.0f);
     struct { XMFLOAT4 a; XMFLOAT4 b; } blurVB = { blurV, blurRanges };
@@ -498,7 +498,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nShowCmd)
     INITCOMMONCONTROLSEX icc = { sizeof(icc), ICC_BAR_CLASSES };
     InitCommonControlsEx(&icc);
 
-    g_graphics.Init(hwnd);
+    g_graphics.InitForCustomRendering(hwnd);
     g_hingeReader.Init();
     g_hingeReader.useRawAccelerometer = true;
     Calibrate(hwnd);
