@@ -235,7 +235,7 @@ static void UpdateTiltFromHinge()
     g_tiltDeg = g_hingeSmooth - 90.0f - g_calibOffset;
 
     g_tiltDeg = max(g_tiltDeg, 0);
-    g_fadeStart = g_tiltDeg / 90;
+    g_fadeEnd = g_tiltDeg / 90;
 
     g_blurRadius = g_tiltDeg;
 
@@ -461,9 +461,13 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nShowCmd)
     RegisterClassExW(&wc);
 
     HWND hwnd = CreateWindowExW(
-        WS_EX_TOPMOST, wc.lpszClassName, L"FlowDuo",
-        WS_OVERLAPPEDWINDOW,
-        CW_USEDEFAULT, CW_USEDEFAULT, 800, 600,
+        WS_EX_TOPMOST,
+        wc.lpszClassName,
+        L"FlowDuo",
+        WS_POPUP,
+        0, 0,
+        GetSystemMetrics(SM_CXSCREEN),
+        GetSystemMetrics(SM_CYSCREEN),
         nullptr, nullptr, hInstance, nullptr);
 
     ShowWindow(hwnd, nShowCmd);
