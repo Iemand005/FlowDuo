@@ -496,6 +496,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nShowCmd)
     g_graphics.Init(hwnd);
     g_hingeReader.Init();
     g_hingeReader.useRawAccelerometer = true;
+    Calibrate(hwnd);
 
     ID3D11Device* device = g_graphics.GetDevice();
     ID3D11DeviceContext* context = g_graphics.GetContext();
