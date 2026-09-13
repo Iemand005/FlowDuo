@@ -460,7 +460,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nShowCmd)
     wc.lpszClassName = L"FlowDuoWindow";
     RegisterClassExW(&wc);
 
-    HWND hwnd = CreateWindowExW(
+    /*HWND hwnd = CreateWindowExW(
         WS_EX_TOPMOST,
         wc.lpszClassName,
         L"FlowDuo",
@@ -468,6 +468,11 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nShowCmd)
         0, 0,
         GetSystemMetrics(SM_CXSCREEN),
         GetSystemMetrics(SM_CYSCREEN),
+        nullptr, nullptr, hInstance, nullptr);*/
+    HWND hwnd = CreateWindowExW(
+        WS_EX_TOPMOST, wc.lpszClassName, L"FlowDuo",
+        WS_OVERLAPPEDWINDOW,
+        CW_USEDEFAULT, CW_USEDEFAULT, 800, 600,
         nullptr, nullptr, hInstance, nullptr);
 
     ShowWindow(hwnd, nShowCmd);
