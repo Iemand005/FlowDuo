@@ -12,6 +12,10 @@ using namespace Microsoft::WRL;
 static Graphics g_graphics;
 static bool g_graphicsReady = false;
 static bool g_windowVisible = false;
+static UINT g_backBufferWidth = 0;
+static UINT g_backBufferHeight = 0;
+static UINT g_effectWidth = 0;
+static UINT g_effectHeight = 0;
 
 static float g_tiltDeg = 0.0f;
 
@@ -59,8 +63,7 @@ void ToggleWindowVisible(HWND hwnd, bool visible) {
         return;
 
     g_windowVisible = visible;
-    if (!visible)
-        g_desktopCapture.Reset(g_graphics.GetContext());
+    if (!visible) g_desktopCapture.Reset(g_graphics.GetContext());
     SetLayeredWindowAttributes(hwnd, 0, visible ? 255 : 0, LWA_ALPHA);
 }
 
@@ -68,7 +71,13 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
     case WM_SIZE:
         if (g_graphicsReady)
+        {
             g_graphics.Resize(hwnd);
+            g_backBufferWidth = LOWORD(lParam);
+            g_backBufferHeight = HIWORD(lParam);
+            g_effectWidth = 0;
+            g_effectHeight = 0;
+        }
         return 0;
     case WM_KEYDOWN:
         if (wParam == VK_SPACE) Calibrate();
@@ -98,6 +107,15 @@ static void CreateQuadPipeline(ID3D11Device* device) {
     CheckHr(device->CreatePixelShader(blurPerformanceBlob->GetBufferPointer(), blurPerformanceBlob->GetBufferSize(), nullptr, &g_blurPerformancePS));
 
     g_graphics.CreateQuadResources(vsBlob.Get(), g_quadResources);
+}
+
+static void ConfigureQuadPipeline(ID3D11DeviceContext* context) {
+    context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    context->IASetInputLayout(g_quadResources.inputLayout.Get());
+    context->VSSetConstantBuffers(0, 1, g_quadResources.transformBuffer.GetAddressOf());
+    context->VSSetShader(g_quadVS.Get(), nullptr, 0);
+    context->PSSetSamplers(0, 1, g_quadResources.sampler.GetAddressOf());
+    context->RSSetState(g_quadResources.rasterizer.Get());
 }
 
 static void UpdateTiltFromHinge() {
@@ -130,21 +148,23 @@ static bool PresentQuad(ID3D11DeviceContext* context) {
     if (!backRTV)
         return false;
 
-    UINT width = 0;
-    UINT height = 0;
-    g_graphics.GetBackBufferSize(&width, &height);
+    UINT width = g_backBufferWidth;
+    UINT height = g_backBufferHeight;
     if (width == 0 || height == 0)
         return false;
 
     UINT effectWidth = max(1u, (UINT)(width * g_effectResolutionScale));
     UINT effectHeight = max(1u, (UINT)(height * g_effectResolutionScale));
-    g_graphics.EnsureRenderTarget(g_sceneTarget, effectWidth, effectHeight);
-    g_graphics.EnsureRenderTarget(g_blurTarget, effectWidth, effectHeight);
+    if (effectWidth != g_effectWidth || effectHeight != g_effectHeight)
+    {
+        g_graphics.EnsureRenderTarget(g_sceneTarget, effectWidth, effectHeight);
+        g_graphics.EnsureRenderTarget(g_blurTarget, effectWidth, effectHeight);
+        g_effectWidth = effectWidth;
+        g_effectHeight = effectHeight;
+    }
 
     D3D11_VIEWPORT viewport = { 0, 0, (float)effectWidth, (float)effectHeight, 0.0f, 1.0f };
     context->RSSetViewports(1, &viewport);
-    context->RSSetState(g_quadResources.rasterizer.Get());
-    
     float aspect = (float)width / (float)height;
     float fov = 40.0f;
     float visibleH = 2.0f * 3.0f * tanf(XMConvertToRadians(fov / 2.0f));
@@ -167,12 +187,6 @@ static bool PresentQuad(ID3D11DeviceContext* context) {
     const float clear[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
     UINT stride = sizeof(Vertex);
     UINT offset = 0;
-
-    context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    context->IASetInputLayout(g_quadResources.inputLayout.Get());
-    context->VSSetConstantBuffers(0, 1, g_quadResources.transformBuffer.GetAddressOf());
-    context->VSSetShader(g_quadVS.Get(), nullptr, 0);
-    context->PSSetSamplers(0, 1, g_quadResources.sampler.GetAddressOf());
 
     context->OMSetRenderTargets(1, g_sceneTarget.renderTargetView.GetAddressOf(), nullptr);
     context->ClearRenderTargetView(g_sceneTarget.renderTargetView.Get(), clear);
@@ -264,6 +278,8 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int) {
     ID3D11DeviceContext* context = g_graphics.GetContext();
 
     CreateQuadPipeline(device);
+    ConfigureQuadPipeline(context);
+    g_graphics.GetBackBufferSize(&g_backBufferWidth, &g_backBufferHeight);
     g_graphicsReady = true;
 
     while (true) {
