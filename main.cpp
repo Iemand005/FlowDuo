@@ -1,4 +1,5 @@
 #include "CubeRenderer.h"
+#include "DesktopCapture.h"
 #include "HingeSensorReader.h"
 #include "Resource.h"
 
@@ -19,9 +20,7 @@ static float g_hingeSmooth = 0.0f;
 static float g_calibOffset = 90.0f;
 static DWORD g_lastHingeRead = 0;
 
-static ComPtr<IDXGIOutputDuplication> g_duplication;
-static ComPtr<ID3D11Texture2D> g_desktopTexture;
-static ComPtr<ID3D11ShaderResourceView> g_desktopSRV;
+static DesktopCapture g_desktopCapture;
 
 static ComPtr<ID3D11VertexShader> g_quadVS;
 static ComPtr<ID3D11PixelShader> g_quadPS;
@@ -46,19 +45,6 @@ static bool g_highQualityBlur = true;
 
 static bool calibrated = false;
 
-static void ResetDesktopCapture() {
-    ID3D11DeviceContext* context = g_graphics.GetContext();
-    if (context)
-    {
-        ID3D11ShaderResourceView* nullSRV = nullptr;
-        context->PSSetShaderResources(0, 1, &nullSRV);
-    }
-
-    g_duplication.Reset();
-    g_desktopSRV.Reset();
-    g_desktopTexture.Reset();
-}
-
 static void Calibrate() {
     if (!g_hingeReader.IsReady()) return;
     calibrated = true;
@@ -74,7 +60,7 @@ void ToggleWindowVisible(HWND hwnd, bool visible) {
 
     g_windowVisible = visible;
     if (!visible)
-        ResetDesktopCapture();
+        g_desktopCapture.Reset(g_graphics.GetContext());
     SetLayeredWindowAttributes(hwnd, 0, visible ? 255 : 0, LWA_ALPHA);
 }
 
@@ -159,69 +145,6 @@ static void UpdateTiltFromHinge() {
     g_fadeStrength = min(g_tiltDeg / 60, 1);
 }
 
-static bool InitDesktopCapture(ID3D11Device* device) {
-    ComPtr<IDXGIDevice> dxgiDevice;
-    CheckHr(device->QueryInterface(IID_PPV_ARGS(&dxgiDevice)));
-
-    ComPtr<IDXGIAdapter> adapter;
-    CheckHr(dxgiDevice->GetAdapter(&adapter));
-
-    ComPtr<IDXGIOutput> output;
-    CheckHr(adapter->EnumOutputs(0, &output));
-
-    ComPtr<IDXGIOutput1> output1;
-    CheckHr(output->QueryInterface(IID_PPV_ARGS(&output1)));
-
-    CheckHr(output1->DuplicateOutput(device, &g_duplication));
-    return g_duplication;
-}
-
-static bool UpdateDesktopFrame(ID3D11Device* device, ID3D11DeviceContext* context) {
-    if (!g_duplication && !InitDesktopCapture(device)) return false;
-
-    DXGI_OUTDUPL_FRAME_INFO frameInfo = {};
-    ComPtr<IDXGIResource> resource;
-    HRESULT hr = g_duplication->AcquireNextFrame(0, &frameInfo, &resource);
-
-    if (hr == DXGI_ERROR_WAIT_TIMEOUT || hr == DXGI_ERROR_NOT_CURRENTLY_AVAILABLE || FAILED(hr))
-    {
-        if (hr == DXGI_ERROR_ACCESS_LOST)
-            g_duplication.Reset();
-        return false;
-    }
-
-    bool copiedFrame = false;
-    if (resource)
-    {
-        ComPtr<ID3D11Texture2D> desktopImage;
-        if (SUCCEEDED(resource->QueryInterface(IID_PPV_ARGS(&desktopImage))))
-        {
-            D3D11_TEXTURE2D_DESC desc;
-            desktopImage->GetDesc(&desc);
-
-            if (!g_desktopTexture)
-            {
-                D3D11_TEXTURE2D_DESC copyDesc = desc;
-                copyDesc.MiscFlags = 0;
-                copyDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-                copyDesc.Usage = D3D11_USAGE_DEFAULT;
-                copyDesc.CPUAccessFlags = 0;
-                CheckHr(device->CreateTexture2D(&copyDesc, nullptr, &g_desktopTexture));
-                CheckHr(device->CreateShaderResourceView(g_desktopTexture.Get(), nullptr, &g_desktopSRV));
-
-                g_quadHalfHeight = (float)desc.Height / (float)desc.Width;
-                g_graphics.CreateQuadVertexBuffer(2.0f, 2.0f * g_quadHalfHeight, g_quadResources.vertexBuffer);
-            }
-
-            context->CopyResource(g_desktopTexture.Get(), desktopImage.Get());
-            copiedFrame = true;
-        }
-    }
-
-    g_duplication->ReleaseFrame();
-    return copiedFrame;
-}
-
 static bool PresentQuad(ID3D11DeviceContext* context) {
     ID3D11RenderTargetView* backRTV = g_graphics.GetRenderTargetView();
     if (!backRTV)
@@ -280,14 +203,13 @@ static bool PresentQuad(ID3D11DeviceContext* context) {
     context->IASetIndexBuffer(g_quadResources.indexBuffer.Get(), DXGI_FORMAT_R16_UINT, 0);
     context->PSSetShader(g_quadPS.Get(), nullptr, 0);
 
-    if (g_desktopSRV)
+    if (ID3D11ShaderResourceView* desktopSRV = g_desktopCapture.GetShaderResourceView())
     {
         const XMFLOAT4 fadeParams(g_fadeStart, g_fadeEnd, g_fadeStrength, 0.0f);
         context->UpdateSubresource(g_quadResources.fadeBuffer.Get(), 0, nullptr, &fadeParams, 0, 0);
         context->PSSetConstantBuffers(1, 1, g_quadResources.fadeBuffer.GetAddressOf());
 
-        ID3D11ShaderResourceView* srv = g_desktopSRV.Get();
-        context->PSSetShaderResources(0, 1, &srv);
+        context->PSSetShaderResources(0, 1, &desktopSRV);
         context->DrawIndexed(6, 0, 0);
     }
 
@@ -386,7 +308,16 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int) {
             continue;
         }
 
-        bool hasFreshFrame = UpdateDesktopFrame(device, context);
+        bool hasFreshFrame = g_desktopCapture.Update(device, context);
+        if (hasFreshFrame)
+        {
+            float aspectRatio = g_desktopCapture.GetAspectRatio();
+            if (aspectRatio > 0.0f && g_quadHalfHeight != 1.0f / aspectRatio)
+            {
+                g_quadHalfHeight = 1.0f / aspectRatio;
+                g_graphics.CreateQuadVertexBuffer(2.0f, 2.0f * g_quadHalfHeight, g_quadResources.vertexBuffer);
+            }
+        }
         if (!g_windowVisible && !hasFreshFrame)
         {
             Sleep(1);
