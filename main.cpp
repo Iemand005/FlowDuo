@@ -14,8 +14,6 @@ static bool g_graphicsReady = false;
 static bool g_windowVisible = false;
 static UINT g_backBufferWidth = 0;
 static UINT g_backBufferHeight = 0;
-static UINT g_effectWidth = 0;
-static UINT g_effectHeight = 0;
 
 static float g_tiltDeg = 0.0f;
 
@@ -31,21 +29,11 @@ static ComPtr<ID3D11PixelShader> g_quadPS;
 static Graphics::QuadResources g_quadResources;
 static float g_quadHalfHeight = 1.0f;
 
-static ComPtr<ID3D11PixelShader> g_blurQualityPS;
-static ComPtr<ID3D11PixelShader> g_blurPerformancePS;
-
-static Graphics::RenderTarget g_sceneTarget;
-static Graphics::RenderTarget g_blurTarget;
-
 static float g_fadeStart = 0.2f;
 static float g_fadeEnd = 1.0f;
 static float g_fadeStrength = 0.0f;
-static float g_blurRadius = 20.0f;
-static float g_blurRadiusMultiplier = 2.0f;
 static DWORD g_hingeSampleIntervalMs = 1;
-static float g_effectResolutionScale = 0.7f;
 static UINT g_presentSyncInterval = 1;
-static bool g_highQualityBlur = true;
 static XMFLOAT3 g_headPosition = { 0.0f, 0.0f, -3.0f };
 
 static bool calibrated = false;
@@ -195,8 +183,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             g_graphics.Resize(hwnd);
             g_backBufferWidth = LOWORD(lParam);
             g_backBufferHeight = HIWORD(lParam);
-            g_effectWidth = 0;
-            g_effectHeight = 0;
         }
         return 0;
     case WM_KEYDOWN:
@@ -218,13 +204,9 @@ static void CheckHr(HRESULT hr) {
 static void CreateQuadPipeline(ID3D11Device* device) {
     auto vsBlob = g_graphics.CompileShaderResource(IDR_QUAD_VERTEX, "vs_5_0");
     auto psBlob = g_graphics.CompileShaderResource(IDR_DESKTOP_PIXEL, "ps_5_0");
-    auto blurQualityBlob = g_graphics.CompileShaderResource(IDR_BLUR_QUALITY, "ps_5_0");
-    auto blurPerformanceBlob = g_graphics.CompileShaderResource(IDR_BLUR_PERFORMANCE, "ps_5_0");
 
     CheckHr(device->CreateVertexShader(vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), nullptr, &g_quadVS));
     CheckHr(device->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(), nullptr, &g_quadPS));
-    CheckHr(device->CreatePixelShader(blurQualityBlob->GetBufferPointer(), blurQualityBlob->GetBufferSize(), nullptr, &g_blurQualityPS));
-    CheckHr(device->CreatePixelShader(blurPerformanceBlob->GetBufferPointer(), blurPerformanceBlob->GetBufferSize(), nullptr, &g_blurPerformancePS));
 
     g_graphics.CreateQuadResources(vsBlob.Get(), g_quadResources);
 }
@@ -258,8 +240,6 @@ static void UpdateTiltFromHinge() {
 
     g_tiltDeg = max(g_tiltDeg, 0);
 
-    g_blurRadius = g_tiltDeg * g_blurRadiusMultiplier;
-
     g_fadeStrength = min(g_tiltDeg / 60, 1);
 }
 
@@ -273,40 +253,31 @@ static bool PresentQuad(ID3D11DeviceContext* context) {
     if (width == 0 || height == 0)
         return false;
 
-    UINT effectWidth = max(1u, (UINT)(width * g_effectResolutionScale));
-    UINT effectHeight = max(1u, (UINT)(height * g_effectResolutionScale));
-    if (effectWidth != g_effectWidth || effectHeight != g_effectHeight)
-    {
-        g_graphics.EnsureRenderTarget(g_sceneTarget, effectWidth, effectHeight);
-        g_graphics.EnsureRenderTarget(g_blurTarget, effectWidth, effectHeight);
-        g_effectWidth = effectWidth;
-        g_effectHeight = effectHeight;
-    }
-
-    D3D11_VIEWPORT viewport = { 0, 0, (float)effectWidth, (float)effectHeight, 0.0f, 1.0f };
+    D3D11_VIEWPORT viewport = { 0, 0, (float)width, (float)height, 0.0f, 1.0f };
     context->RSSetViewports(1, &viewport);
     float aspect = (float)width / (float)height;
     float fov = 40.0f;
     const XMVECTOR head = XMLoadFloat3(&g_headPosition);
-    XMMATRIX view = XMMatrixLookAtLH(head, XMVectorZero(), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
     XMMATRIX proj = XMMatrixPerspectiveFovLH(XMConvertToRadians(fov), aspect, 0.1f, 100.0f);
-    Vertex virtualVertices[4] = {};
+    Vertex lidVertices[4] = {};
     DisplayGeometry geometry = {};
     if (!BuildDisplayGeometry(2.0f * g_quadHalfHeight, XMConvertToRadians(g_tiltDeg), &geometry))
         return false;
-    BuildLidVertices(geometry, virtualVertices);
-    context->UpdateSubresource(g_quadResources.vertexBuffer.Get(), 0, nullptr, virtualVertices, 0, 0);
+    BuildLidVertices(geometry, lidVertices);
+    context->UpdateSubresource(g_quadResources.vertexBuffer.Get(), 0, nullptr, lidVertices, 0, 0);
 
-    XMMATRIX world = XMMatrixIdentity();
-
-    XMMATRIX transform = XMMatrixTranspose(world * view * proj);
+    const XMVECTOR lidCenter = XMVectorScale(XMVectorAdd(
+        XMVectorAdd(geometry.virtualBottomLeft, geometry.virtualBottomRight),
+        XMVectorAdd(geometry.lidTopLeft, geometry.lidTopRight)), 0.25f);
+    XMMATRIX view = XMMatrixLookAtLH(head, lidCenter, XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
+    XMMATRIX transform = XMMatrixTranspose(view * proj);
 
     const float clear[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
     UINT stride = sizeof(Vertex);
     UINT offset = 0;
 
-    context->OMSetRenderTargets(1, g_sceneTarget.renderTargetView.GetAddressOf(), nullptr);
-    context->ClearRenderTargetView(g_sceneTarget.renderTargetView.Get(), clear);
+    context->OMSetRenderTargets(1, &backRTV, nullptr);
+    context->ClearRenderTargetView(backRTV, clear);
 
     context->UpdateSubresource(g_quadResources.transformBuffer.Get(), 0, nullptr, &transform, 0, 0);
     ID3D11Buffer* vb = g_quadResources.vertexBuffer.Get();
@@ -323,43 +294,6 @@ static bool PresentQuad(ID3D11DeviceContext* context) {
         context->PSSetShaderResources(0, 1, &desktopSRV);
         context->DrawIndexed(6, 0, 0);
     }
-
-    XMMATRIX identity = XMMatrixIdentity();
-    context->UpdateSubresource(g_quadResources.transformBuffer.Get(), 0, nullptr, &identity, 0, 0);
-
-    vb = g_quadResources.blurVertexBuffer.Get();
-    context->IASetVertexBuffers(0, 1, &vb, &stride, &offset);
-    context->IASetIndexBuffer(g_quadResources.blurIndexBuffer.Get(), DXGI_FORMAT_R16_UINT, 0);
-
-    context->OMSetRenderTargets(1, g_blurTarget.renderTargetView.GetAddressOf(), nullptr);
-    context->PSSetShader((g_highQualityBlur ? g_blurQualityPS : g_blurPerformancePS).Get(), nullptr, 0);
-
-    const float texelX = 1.0f / (float)effectWidth;
-    const float texelY = 1.0f / (float)effectHeight;
-
-    const XMFLOAT4 blurRanges(0.0f, g_blurRadius * g_effectResolutionScale, 0.0f, 0.0f);
-
-    const XMFLOAT4 blurH(texelX, texelY, 0.0f, 0.0f);
-    const XMFLOAT4 blurH2 = blurRanges;
-    struct { XMFLOAT4 a; XMFLOAT4 b; } blurHB = { blurH, blurH2 };
-    context->UpdateSubresource(g_quadResources.blurBuffer.Get(), 0, nullptr, &blurHB, 0, 0);
-    context->PSSetConstantBuffers(1, 1, g_quadResources.blurBuffer.GetAddressOf());
-    ID3D11ShaderResourceView* sceneSRV = g_sceneTarget.shaderResourceView.Get();
-    context->PSSetShaderResources(0, 1, &sceneSRV);
-    context->DrawIndexed(6, 0, 0);
-    context->PSSetShaderResources(0, 0, nullptr);
-
-    viewport = { 0, 0, (float)width, (float)height, 0.0f, 1.0f };
-    context->RSSetViewports(1, &viewport);
-    context->OMSetRenderTargets(1, &backRTV, nullptr);
-    context->ClearRenderTargetView(backRTV, clear);
-
-    const XMFLOAT4 blurV(texelX, texelY, 1.0f, 0.0f);
-    struct { XMFLOAT4 a; XMFLOAT4 b; } blurVB = { blurV, blurRanges };
-    context->UpdateSubresource(g_quadResources.blurBuffer.Get(), 0, nullptr, &blurVB, 0, 0);
-    ID3D11ShaderResourceView* blurSRV = g_blurTarget.shaderResourceView.Get();
-    context->PSSetShaderResources(0, 1, &blurSRV);
-    context->DrawIndexed(6, 0, 0);
     context->PSSetShaderResources(0, 0, nullptr);
 
     g_graphics.Present(g_presentSyncInterval);
