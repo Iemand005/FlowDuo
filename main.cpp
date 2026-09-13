@@ -55,6 +55,7 @@ static float g_fadeStart = 0.2f;
 static float g_fadeEnd = 1.0f;
 static float g_fadeStrength = 0.0f;
 static float g_blurRadius = 20.0f;
+static float g_blurRadiusMultiplier = 3.0f;
 static float g_blurRadiusMin = 0.0f;
 
 static void Calibrate(HWND hwnd) {
@@ -240,7 +241,7 @@ static void UpdateTiltFromHinge()
     g_tiltDeg = max(g_tiltDeg, 0);
     //g_fadeEnd = g_tiltDeg / 90;
 
-    g_blurRadius = g_tiltDeg;
+    g_blurRadius = g_tiltDeg * g_blurRadiusMultiplier;
 
     g_fadeStrength = g_tiltDeg / 90;
 
