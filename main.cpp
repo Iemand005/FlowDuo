@@ -158,8 +158,8 @@ static void BuildLidVertices(const DisplayGeometry& geometry, Vertex* vertices) 
 
     vertices[0].textureCoordinate = { 0.0f, 1.0f };
     vertices[1].textureCoordinate = { 1.0f, 1.0f };
-    vertices[2].textureCoordinate = geometry.projectedTopRightUv;
-    vertices[3].textureCoordinate = geometry.projectedTopLeftUv;
+    vertices[2].textureCoordinate = { geometry.projectedTopRightUv.x, geometry.projectedTopRightUv.y };
+    vertices[3].textureCoordinate = { geometry.projectedTopLeftUv.x, geometry.projectedTopLeftUv.y };
     vertices[0].blur = 0.0f;
     vertices[1].blur = 0.0f;
     vertices[2].blur = geometry.lidTopBlur;
