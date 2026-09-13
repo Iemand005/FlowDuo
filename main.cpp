@@ -64,7 +64,7 @@ static void Calibrate(HWND hwnd) {
 }
 
 void ToggleWindowVisible(HWND hwnd, bool visible) {
-    bool trueHide = false;
+    bool trueHide = true;
     if (trueHide) ShowWindow(hwnd, visible ? SW_SHOW : SW_HIDE);
     else {
         SetLayeredWindowAttributes(hwnd, 0, visible ? 1 : 0, LWA_ALPHA);
