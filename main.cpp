@@ -32,6 +32,7 @@ static float g_quadHalfHeight = 1.0f;
 static float g_fadeStart = 0.2f;
 static float g_fadeEnd = 1.0f;
 static float g_fadeStrength = 0.0f;
+static float g_blurScale = 0.08f;
 static DWORD g_hingeSampleIntervalMs = 1;
 static UINT g_presentSyncInterval = 1;
 static XMFLOAT3 g_headPosition = { 0.0f, 0.0f, -3.0f };
@@ -45,10 +46,12 @@ struct DisplayGeometry {
     XMVECTOR virtualTopRight;
     XMVECTOR lidTopLeft;
     XMVECTOR lidTopRight;
+    XMVECTOR lidCenter;
     XMVECTOR projectedTopLeft;
     XMVECTOR projectedTopRight;
     XMFLOAT2 projectedTopLeftUv;
     XMFLOAT2 projectedTopRightUv;
+    float lidTopBlur;
 };
 
 static XMVECTOR RotateAroundAxis(const XMVECTOR& vector, const XMVECTOR& axis, float angle) {
@@ -116,11 +119,11 @@ static bool BuildDisplayGeometry(float screenHeight, float hingeAngle, DisplayGe
     const XMVECTOR projectedRightOffset = XMVectorSubtract(projectedTopRight, virtualBottomLeft);
     const XMFLOAT2 projectedTopLeftUv = {
         XMVectorGetX(XMVector3Dot(projectedLeftOffset, virtualX)) / virtualWidth,
-        XMVectorGetX(XMVector3Dot(projectedLeftOffset, virtualY)) / virtualHeight
+        1.0f - XMVectorGetX(XMVector3Dot(projectedLeftOffset, virtualY)) / virtualHeight
     };
     const XMFLOAT2 projectedTopRightUv = {
         XMVectorGetX(XMVector3Dot(projectedRightOffset, virtualX)) / virtualWidth,
-        XMVectorGetX(XMVector3Dot(projectedRightOffset, virtualY)) / virtualHeight
+        1.0f - XMVectorGetX(XMVector3Dot(projectedRightOffset, virtualY)) / virtualHeight
     };
     if (!isfinite(projectedTopLeftUv.x) || !isfinite(projectedTopLeftUv.y) ||
         !isfinite(projectedTopRightUv.x) || !isfinite(projectedTopRightUv.y))
@@ -132,6 +135,10 @@ static bool BuildDisplayGeometry(float screenHeight, float hingeAngle, DisplayGe
     geometry->virtualTopRight = virtualTopRight;
     geometry->lidTopLeft = lidTopLeft;
     geometry->lidTopRight = lidTopRight;
+    geometry->lidCenter = XMVectorScale(
+        XMVectorAdd(XMVectorAdd(virtualBottomLeft, virtualBottomRight),
+                    XMVectorAdd(lidTopLeft, lidTopRight)), 0.25f);
+    geometry->lidTopBlur = fabsf(XMVectorGetZ(lidTopLeft));
     geometry->projectedTopLeft = projectedTopLeft;
     geometry->projectedTopRight = projectedTopRight;
     geometry->projectedTopLeftUv = projectedTopLeftUv;
@@ -151,8 +158,12 @@ static void BuildLidVertices(const DisplayGeometry& geometry, Vertex* vertices) 
 
     vertices[0].textureCoordinate = { 0.0f, 1.0f };
     vertices[1].textureCoordinate = { 1.0f, 1.0f };
-    vertices[2].textureCoordinate = { 1.0f, 0.0f };
-    vertices[3].textureCoordinate = { 0.0f, 0.0f };
+    vertices[2].textureCoordinate = geometry.projectedTopRightUv;
+    vertices[3].textureCoordinate = geometry.projectedTopLeftUv;
+    vertices[0].blur = 0.0f;
+    vertices[1].blur = 0.0f;
+    vertices[2].blur = geometry.lidTopBlur;
+    vertices[3].blur = geometry.lidTopBlur;
 }
 
 static void Calibrate() {
@@ -264,7 +275,7 @@ static bool PresentQuad(ID3D11DeviceContext* context) {
     BuildLidVertices(geometry, lidVertices);
     context->UpdateSubresource(g_quadResources.vertexBuffer.Get(), 0, nullptr, lidVertices, 0, 0);
 
-    XMMATRIX view = XMMatrixLookAtLH(head, XMVectorZero(), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
+    XMMATRIX view = XMMatrixLookAtLH(head, geometry.lidCenter, XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
     XMMATRIX transform = XMMatrixTranspose(view * proj);
 
     const float clear[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
