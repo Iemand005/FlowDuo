@@ -54,8 +54,8 @@ static UINT g_sceneH = 0;
 static float g_fadeStart = 0.2f;
 static float g_fadeEnd = 1.0f;
 static float g_fadeStrength = 1.0f;
-static float g_blurRadius = 20.0f;
-static float g_blurRadiusMin = 1.0f;
+float g_blurRadius = 20.0f;
+float g_blurRadiusMin = 1.0f;
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
