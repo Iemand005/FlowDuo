@@ -151,10 +151,8 @@ static void BuildLidVertices(const DisplayGeometry& geometry, Vertex* vertices) 
 
     vertices[0].textureCoordinate = { 0.0f, 1.0f };
     vertices[1].textureCoordinate = { 1.0f, 1.0f };
-    vertices[2].textureCoordinate.u = geometry.projectedTopRightUv.x;
-    vertices[2].textureCoordinate.v = geometry.projectedTopRightUv.y;
-    vertices[3].textureCoordinate.u = geometry.projectedTopLeftUv.x;
-    vertices[3].textureCoordinate.v = geometry.projectedTopLeftUv.y;
+    vertices[2].textureCoordinate = { 1.0f, 0.0f };
+    vertices[3].textureCoordinate = { 0.0f, 0.0f };
 }
 
 static void Calibrate() {
@@ -287,8 +285,32 @@ static bool PresentQuad(ID3D11DeviceContext* context) {
 
     if (ID3D11ShaderResourceView* desktopSRV = g_desktopCapture.GetShaderResourceView())
     {
-        const XMFLOAT4 fadeParams(g_fadeStart, g_fadeEnd, g_fadeStrength, 0.0f);
-        context->UpdateSubresource(g_quadResources.fadeBuffer.Get(), 0, nullptr, &fadeParams, 0, 0);
+        const XMVECTOR virtualX = XMVector3Normalize(XMVectorSubtract(
+            geometry.virtualBottomRight, geometry.virtualBottomLeft));
+        const XMVECTOR virtualY = XMVector3Normalize(XMVectorSubtract(
+            geometry.virtualTopLeft, geometry.virtualBottomLeft));
+        const XMVECTOR virtualNormal = XMVector3Normalize(XMVector3Cross(
+            XMVectorSubtract(geometry.virtualBottomRight, geometry.virtualBottomLeft),
+            XMVectorSubtract(geometry.virtualTopLeft, geometry.virtualBottomLeft)));
+        const float virtualWidth = XMVectorGetX(XMVector3Length(XMVectorSubtract(
+            geometry.virtualBottomRight, geometry.virtualBottomLeft)));
+        const float virtualHeight = XMVectorGetX(XMVector3Length(XMVectorSubtract(
+            geometry.virtualTopLeft, geometry.virtualBottomLeft)));
+        struct SceneConstants {
+            XMFLOAT4 headPosition;
+            XMFLOAT4 virtualBottomLeft;
+            XMFLOAT4 virtualNormal;
+            XMFLOAT4 virtualXAndWidth;
+            XMFLOAT4 virtualYAndHeight;
+            XMFLOAT4 fadeParams;
+        } sceneConstants = {};
+        XMStoreFloat4(&sceneConstants.headPosition, head);
+        XMStoreFloat4(&sceneConstants.virtualBottomLeft, geometry.virtualBottomLeft);
+        XMStoreFloat4(&sceneConstants.virtualNormal, virtualNormal);
+        XMStoreFloat4(&sceneConstants.virtualXAndWidth, XMVectorSetW(virtualX, virtualWidth));
+        XMStoreFloat4(&sceneConstants.virtualYAndHeight, XMVectorSetW(virtualY, virtualHeight));
+        sceneConstants.fadeParams = { g_fadeStart, g_fadeEnd, g_fadeStrength, 0.0f };
+        context->UpdateSubresource(g_quadResources.fadeBuffer.Get(), 0, nullptr, &sceneConstants, 0, 0);
         context->PSSetConstantBuffers(1, 1, g_quadResources.fadeBuffer.GetAddressOf());
 
         context->PSSetShaderResources(0, 1, &desktopSRV);

@@ -12,13 +12,13 @@ struct VSIn
 struct VSOut
 {
     float4 pos : SV_POSITION;
-    float2 uv : TEXCOORD0;
+    float3 worldPosition : TEXCOORD1;
 };
 
 VSOut main(VSIn i)
 {
     VSOut o;
     o.pos = mul(float4(i.pos, 1.0), transform);
-    o.uv = i.uv;
+    o.worldPosition = i.pos;
     return o;
 }
