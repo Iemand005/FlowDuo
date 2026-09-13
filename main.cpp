@@ -65,6 +65,11 @@ static void Calibrate(HWND hwnd) {
     SetWindowTextW(hwnd, buf);
 }
 
+void ToggleWindowVisible(HWND hwnd) {
+    bool isVisible = IsWindowVisible(hwnd);
+    ShowWindow(hwnd, isVisible ? SW_HIDE : SW_SHOW);
+}
+
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     switch (msg)
