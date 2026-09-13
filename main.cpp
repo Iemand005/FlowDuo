@@ -483,15 +483,6 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nShowCmd)
     wc.lpszClassName = L"FlowDuoWindow";
     RegisterClassExW(&wc);
 
-    /*HWND hwnd = CreateWindowExW(
-        WS_EX_TOPMOST,
-        wc.lpszClassName,
-        L"FlowDuo",
-        WS_POPUP,
-        0, 0,
-        GetSystemMetrics(SM_CXSCREEN),
-        GetSystemMetrics(SM_CYSCREEN),
-        nullptr, nullptr, hInstance, nullptr);*/
     BOOL borderless = true;
     HWND hwnd = CreateWindowExW(
         WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_LAYERED | WS_EX_TRANSPARENT, wc.lpszClassName, L"FlowDuo",
@@ -541,6 +532,5 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nShowCmd)
          if (g_tiltDeg > 0) ToggleWindowVisible(hwnd, true);
         else ToggleWindowVisible(hwnd, false);
         PresentQuad(device, context);
-        //Sleep(16);
     }
 }
