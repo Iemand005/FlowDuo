@@ -43,7 +43,7 @@ float4 main(VSOut i) : SV_TARGET
     if (u < 0.0 || u > 1.0 || v < 0.0 || v > 1.0)
         return float4(0.0, 0.0, 0.0, 1.0);
 
-    float sampleV = 1.0 - v;
+    float sampleV = v;
 
     float blurT = saturate((tHit - blurMetrics.x) / max(blurMetrics.y - blurMetrics.x, 0.0001));
     float radiusPx = blurT * blurMetrics.z;
