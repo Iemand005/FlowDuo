@@ -51,6 +51,7 @@ static float g_fadeStrength = 0.0f;
 static float g_blurRadius = 20.0f;
 static float g_blurRadiusMultiplier = 2.0f;
 static float g_blurRadiusMin = 0.0f;
+static DWORD g_hingeSampleIntervalMs = 16;
 
 static bool calibrated = false;
 
@@ -231,9 +232,9 @@ static void UpdateTiltFromHinge()
         return;
 
     DWORD now = GetTickCount();
-    if (now - g_lastHingeRead < 16)
+    if (now - g_lastHingeRead < g_hingeSampleIntervalMs)
         return;
-    DWORD elapsed = g_lastHingeRead == 0 ? 16 : now - g_lastHingeRead;
+    DWORD elapsed = g_lastHingeRead == 0 ? g_hingeSampleIntervalMs : now - g_lastHingeRead;
     g_lastHingeRead = now;
 
     float hinge = 0;
