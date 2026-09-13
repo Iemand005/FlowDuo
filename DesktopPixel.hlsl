@@ -1,5 +1,5 @@
 Texture2D displayTex : register(t0);
-SamplerState borderSamp : register(s0); // must be created with D3D11_FILTER_MIN_MAG_MIP_LINEAR (or equivalent trilinear filter) on the CPU side, and displayTex must have a full mip chain generated (GenerateMips) before this shader reads it
+SamplerState borderSamp : register(s0);
 
 cbuffer SceneCB : register(b0)
 {
@@ -41,23 +41,40 @@ float4 main(VSOut i) : SV_TARGET
     float v = dot(local, dispUpAxis.xyz) / displayMetrics.y;
 
     float sampleV = 1.0 - v;
-    float2 sampleUv = float2(u, sampleV);
 
     float lidDisplayDistance = abs(dot(i.lidWorld - dispOrigin.xyz, dispNormal.xyz));
     float radiusPx = min(max(lidDisplayDistance * blurMetrics.z, 0.0), 256.0);
-
-    uint textureWidth, textureHeight, mipLevels;
-    displayTex.GetDimensions(0, textureWidth, textureHeight, mipLevels);
-
-    float lodScale = 0.9;
-    float lod = log2(max(radiusPx, 1.0)) * lodScale;
-    lod = clamp(lod, 0.0, float(mipLevels - 1));
-
-    float4 color;
+    uint textureWidth;
+    uint textureHeight;
+    displayTex.GetDimensions(textureWidth, textureHeight);
+    float2 texel = 1.0 / float2(textureWidth, textureHeight);
+    float2 sampleUv = float2(u, sampleV);
+    float4 color = displayTex.Sample(borderSamp, sampleUv);
     if (radiusPx > 0.5)
-        color = displayTex.SampleLevel(borderSamp, sampleUv, lod);
-    else
-        color = displayTex.SampleLevel(borderSamp, sampleUv, 0.0);
+    {
+        static const int SAMPLE_COUNT = 28;
+        static const float GOLDEN_ANGLE = 2.39996323; // radians (~137.5 degrees)
+
+        float2 blurStep = texel * radiusPx;
+        float sigma = 0.45; // 0.3 = tighter/sharper falloff, 0.6 = softer/more spread
+        float4 sum = color;
+        float weightSum = 1.0;
+
+        [unroll]
+        for (int tap = 0; tap < SAMPLE_COUNT; ++tap)
+        {
+            float t = (tap + 0.5) / SAMPLE_COUNT;
+            float r = sqrt(t); // sqrt gives uniform area coverage across the disk
+            float theta = tap * GOLDEN_ANGLE;
+            float2 offset = float2(cos(theta), sin(theta)) * r;
+
+            float weight = exp(-(r * r) / (2.0 * sigma * sigma));
+            sum += displayTex.Sample(borderSamp, sampleUv + offset * blurStep) * weight;
+            weightSum += weight;
+        }
+
+        color = sum / weightSum;
+    }
 
     float fade = 1.0 - effectMetrics.x * smoothstep(0.2, 1.0, v);
     return float4(color.rgb * fade, color.a);
