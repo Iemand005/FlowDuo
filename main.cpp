@@ -260,7 +260,7 @@ static bool PresentQuad(ID3D11DeviceContext* context)
     float visibleW = visibleH * aspect;
     float scale = max(visibleW / 2.0f, visibleH / (2.0f * g_quadHalfHeight));
 
-    float scaleMulti = g_tiltDeg / 270;
+    float scaleMulti = g_tiltDeg / 20;
     float scaleY = scale * (1 + scaleMulti) * 1;
 
     XMMATRIX world =
