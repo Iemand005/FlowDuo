@@ -43,26 +43,35 @@ float4 main(VSOut i) : SV_TARGET
     float sampleV = 1.0 - v;
 
     float lidDisplayDistance = abs(dot(i.lidWorld - dispOrigin.xyz, dispNormal.xyz));
-    float radiusPx = min(max(lidDisplayDistance * blurMetrics.z, 0.0), 64.0);
+    float radiusPx = min(max(lidDisplayDistance * blurMetrics.z, 0.0), 256.0);
     uint textureWidth;
     uint textureHeight;
     displayTex.GetDimensions(textureWidth, textureHeight);
-    float2 texel = radiusPx / float2(textureWidth, textureHeight);
-    float4 color = displayTex.Sample(borderSamp, float2(u, sampleV));
-    if (radiusPx > 0.5 && radiusPx < 64.0)
+    float2 texel = 1.0 / float2(textureWidth, textureHeight);
+    float2 sampleUv = float2(u, sampleV);
+    float4 color = displayTex.Sample(borderSamp, sampleUv);
+    if (radiusPx > 0.5)
     {
-        float4 sum = color;
-        const int taps = 4;
+        const int kernelRadius = 4;
+        float sigma = max(radiusPx * 0.5, 0.75);
+        float inverseTwoSigmaSquared = 0.5 / (sigma * sigma);
+        float2 kernelStep = texel * (radiusPx / (float)kernelRadius);
+        float4 sum = float4(0.0, 0.0, 0.0, 0.0);
+        float weightSum = 0.0;
         [unroll]
-        for (int tap = 1; tap <= taps; ++tap)
+        for (int y = -kernelRadius; y <= kernelRadius; ++y)
         {
-            float weight = (float)tap / (float)taps;
-            sum += displayTex.Sample(borderSamp, float2(u, sampleV) + float2(texel.x, 0.0) * weight);
-            sum += displayTex.Sample(borderSamp, float2(u, sampleV) - float2(texel.x, 0.0) * weight);
-            sum += displayTex.Sample(borderSamp, float2(u, sampleV) + float2(0.0, texel.y) * weight);
-            sum += displayTex.Sample(borderSamp, float2(u, sampleV) - float2(0.0, texel.y) * weight);
+            [unroll]
+            for (int x = -kernelRadius; x <= kernelRadius; ++x)
+            {
+                float2 offset = float2((float)x, (float)y) * kernelStep;
+                float distanceSquared = (float)(x * x + y * y) * (radiusPx / (float)kernelRadius) * (radiusPx / (float)kernelRadius);
+                float weight = exp(-distanceSquared * inverseTwoSigmaSquared);
+                sum += displayTex.Sample(borderSamp, sampleUv + offset) * weight;
+                weightSum += weight;
+            }
         }
-        color = sum / (1.0 + 4.0 * taps);
+        color = sum / weightSum;
     }
 
     float fade = 1.0 - effectMetrics.x * smoothstep(0.2, 1.0, v);
