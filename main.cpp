@@ -321,7 +321,6 @@ static void UpdateDesktopFrame(ID3D11Device* device, ID3D11DeviceContext* contex
 
 static void PresentQuad(ID3D11DeviceContext* context)
 {
-    IDXGISwapChain* swapChain = g_graphics.GetSwapChain();
     ID3D11RenderTargetView* backRTV = g_graphics.GetRenderTargetView();
     if (!backRTV)
         return;
@@ -463,7 +462,6 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nShowCmd)
 
     ID3D11Device* device = g_graphics.GetDevice(); 
     ID3D11DeviceContext* context = g_graphics.GetContext();
-    IDXGISwapChain* swapChain = g_graphics.GetSwapChain();
 
     CreateQuadPipeline(device);
     InitDesktopCapture(device);
