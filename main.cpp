@@ -33,7 +33,8 @@ static ComPtr<ID3D11SamplerState> g_quadSampler;
 static ComPtr<ID3D11RasterizerState> g_quadRaster;
 static float g_quadHalfHeight = 1.0f;
 
-static ComPtr<ID3D11PixelShader> g_blurPS;
+static ComPtr<ID3D11PixelShader> g_blurQualityPS;
+static ComPtr<ID3D11PixelShader> g_blurPerformancePS;
 static ComPtr<ID3D11Buffer> g_fadeCB;
 static ComPtr<ID3D11Buffer> g_blurCB;
 static ComPtr<ID3D11Buffer> g_blurVB;
@@ -50,6 +51,7 @@ static float g_blurRadiusMultiplier = 2.0f;
 static DWORD g_hingeSampleIntervalMs = 1;
 static float g_effectResolutionScale = 0.7f;
 static UINT g_presentSyncInterval = 1;
+static bool g_highQualityBlur = true;
 
 static bool calibrated = false;
 
@@ -146,7 +148,31 @@ static void CreateQuadPipeline(ID3D11Device* device)
         "    return float4(c.rgb * fade, c.a);\n"
         "}\n";
 
-    const char* blurSrc =
+    const char* blurQualitySrc =
+        "Texture2D sceneTex : register(t0);\n"
+        "SamplerState samp : register(s0);\n"
+        "cbuffer BlurCB : register(b1)\n"
+        "{ float4 texelDir; float4 ranges; };\n"
+        "struct VSOut { float4 pos : SV_POSITION; float2 uv : TEXCOORD0; };\n"
+        "float4 main(VSOut i) : SV_TARGET\n"
+        "{\n"
+        "    float2 texel = float2(texelDir.x, texelDir.y);\n"
+        "    float2 dir = lerp(float2(texel.x, 0.0), float2(0.0, texel.y), texelDir.z);\n"
+        "    float sigma = max(0.001, lerp(ranges.x, ranges.y, 1.0 - i.uv.y));\n"
+        "    int halfK = min(32, (int)(sigma * 2.5 + 0.5));\n"
+        "    float wsum = 0.0;\n"
+        "    float4 c = 0.0;\n"
+        "    [loop]\n"
+        "    for (int k = -halfK; k <= halfK; ++k)\n"
+        "    {\n"
+        "        float w = exp(-((float)k * (float)k) / (2.0 * sigma * sigma));\n"
+        "        c += sceneTex.Sample(samp, i.uv + dir * (float)k) * w;\n"
+        "        wsum += w;\n"
+        "    }\n"
+        "    return c / wsum;\n"
+        "}\n";
+
+    const char* blurPerformanceSrc =
         "Texture2D sceneTex : register(t0);\n"
         "SamplerState samp : register(s0);\n"
         "cbuffer BlurCB : register(b1)\n"
@@ -168,11 +194,13 @@ static void CreateQuadPipeline(ID3D11Device* device)
 
     auto vsBlob = CompileShader(vsSrc, "vs_5_0");
     auto psBlob = CompileShader(psSource, "ps_5_0");
-    auto blurBlob = CompileShader(blurSrc, "ps_5_0");
+    auto blurQualityBlob = CompileShader(blurQualitySrc, "ps_5_0");
+    auto blurPerformanceBlob = CompileShader(blurPerformanceSrc, "ps_5_0");
 
     CheckHr(device->CreateVertexShader(vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), nullptr, &g_quadVS));
     CheckHr(device->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(), nullptr, &g_quadPS));
-    CheckHr(device->CreatePixelShader(blurBlob->GetBufferPointer(), blurBlob->GetBufferSize(), nullptr, &g_blurPS));
+    CheckHr(device->CreatePixelShader(blurQualityBlob->GetBufferPointer(), blurQualityBlob->GetBufferSize(), nullptr, &g_blurQualityPS));
+    CheckHr(device->CreatePixelShader(blurPerformanceBlob->GetBufferPointer(), blurPerformanceBlob->GetBufferSize(), nullptr, &g_blurPerformancePS));
 
     D3D11_INPUT_ELEMENT_DESC layout[] = {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
@@ -414,7 +442,7 @@ static bool PresentQuad(ID3D11DeviceContext* context)
     context->IASetIndexBuffer(g_blurIB.Get(), DXGI_FORMAT_R16_UINT, 0);
 
     context->OMSetRenderTargets(1, g_blurTarget.renderTargetView.GetAddressOf(), nullptr);
-    context->PSSetShader(g_blurPS.Get(), nullptr, 0);
+    context->PSSetShader((g_highQualityBlur ? g_blurQualityPS : g_blurPerformancePS).Get(), nullptr, 0);
 
     const float texelX = 1.0f / (float)effectWidth;
     const float texelY = 1.0f / (float)effectHeight;
