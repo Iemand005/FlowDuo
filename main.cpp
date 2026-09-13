@@ -54,7 +54,6 @@ static void BuildVirtualDisplayVertices(
     float viewportHeight,
     const XMMATRIX& view,
     const XMMATRIX& projection,
-    float tiltRadians,
     Vertex* vertices) {
     const XMMATRIX calibratedWorld = XMMatrixIdentity();
     const XMVECTOR referenceScreenPoint = XMVector3Project(
@@ -114,19 +113,11 @@ static void BuildVirtualDisplayVertices(
         view,
         calibratedWorld);
 
-    const XMMATRIX hingeRotation = XMMatrixRotationX(-tiltRadians);
-    const XMVECTOR topLeft = XMVectorAdd(
-        bottomLeft,
-        XMVector3TransformNormal(XMVectorSubtract(topLeftReference, bottomLeft), hingeRotation));
-    const XMVECTOR topRight = XMVectorAdd(
-        bottomRight,
-        XMVector3TransformNormal(XMVectorSubtract(topRightReference, bottomRight), hingeRotation));
-
     XMFLOAT3 positions[4] = {};
     XMStoreFloat3(&positions[0], bottomLeft);
     XMStoreFloat3(&positions[1], bottomRight);
-    XMStoreFloat3(&positions[2], topRight);
-    XMStoreFloat3(&positions[3], topLeft);
+    XMStoreFloat3(&positions[2], topRightReference);
+    XMStoreFloat3(&positions[3], topLeftReference);
     for (int index = 0; index < 4; ++index) {
         vertices[index].position.x = positions[index].x;
         vertices[index].position.y = positions[index].y;
@@ -265,7 +256,6 @@ static bool PresentQuad(ID3D11DeviceContext* context) {
         (float)effectHeight,
         view,
         proj,
-        XMConvertToRadians(-g_tiltDeg),
         virtualVertices);
     context->UpdateSubresource(g_quadResources.vertexBuffer.Get(), 0, nullptr, virtualVertices, 0, 0);
 
