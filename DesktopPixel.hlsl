@@ -58,21 +58,29 @@ float4 main(VSOut i) : SV_TARGET
             float2(0.2475, 0.2475), float2(-0.2475, 0.2475),
             float2(0.2475, -0.2475), float2(-0.2475, -0.2475)
         };
+        const float2 ringMiddle[8] = {
+            float2(0.62, 0.0), float2(-0.62, 0.0),
+            float2(0.0, 0.62), float2(0.0, -0.62),
+            float2(0.4384, 0.4384), float2(-0.4384, 0.4384),
+            float2(0.4384, -0.4384), float2(-0.4384, -0.4384)
+        };
         const float2 ringOuter[8] = {
-            float2(0.75, 0.0), float2(-0.75, 0.0),
-            float2(0.0, 0.75), float2(0.0, -0.75),
-            float2(0.5303, 0.5303), float2(-0.5303, 0.5303),
-            float2(0.5303, -0.5303), float2(-0.5303, -0.5303)
+            float2(0.91, 0.0), float2(-0.91, 0.0),
+            float2(0.0, 0.91), float2(0.0, -0.91),
+            float2(0.6435, 0.6435), float2(-0.6435, 0.6435),
+            float2(0.6435, -0.6435), float2(-0.6435, -0.6435)
         };
         float2 blurStep = texel * radiusPx;
-        float innerWeight = 0.22;
-        float outerWeight = 0.07;
-        float weightSum = 1.0 + 8.0 * innerWeight + 8.0 * outerWeight;
+        float innerWeight = 0.18;
+        float middleWeight = 0.09;
+        float outerWeight = 0.035;
+        float weightSum = 1.0 + 8.0 * (innerWeight + middleWeight + outerWeight);
         float4 sum = color;
         [unroll]
         for (int tap = 0; tap < 8; ++tap)
         {
             sum += displayTex.Sample(borderSamp, sampleUv + ringInner[tap] * blurStep) * innerWeight;
+            sum += displayTex.Sample(borderSamp, sampleUv + ringMiddle[tap] * blurStep) * middleWeight;
             sum += displayTex.Sample(borderSamp, sampleUv + ringOuter[tap] * blurStep) * outerWeight;
         }
         color = sum / weightSum;
