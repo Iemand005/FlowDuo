@@ -65,17 +65,6 @@ static bool BuildDisplayGeometry(float screenHeight, float hingeAngle, DisplayGe
     return true;
 }
 
-static void BuildFullscreenVertices(Vertex* vertices) {
-    vertices[0].position = { -1.0f, 1.0f, 0.0f };
-    vertices[1].position = { 1.0f, 1.0f, 0.0f };
-    vertices[2].position = { -1.0f, -1.0f, 0.0f };
-    vertices[3].position = { 1.0f, -1.0f, 0.0f };
-    vertices[0].textureCoordinate = { 0.0f, 0.0f };
-    vertices[1].textureCoordinate = { 1.0f, 0.0f };
-    vertices[2].textureCoordinate = { 0.0f, 1.0f };
-    vertices[3].textureCoordinate = { 1.0f, 1.0f };
-}
-
 static void Calibrate() {
     if (!g_hingeReader.IsReady()) return;
     calibrated = true;
@@ -127,12 +116,11 @@ static void CreateQuadPipeline(ID3D11Device* device) {
     CheckHr(device->CreateVertexShader(vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), nullptr, &g_quadVS));
     CheckHr(device->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(), nullptr, &g_quadPS));
 
-    g_graphics.CreateQuadResources(vsBlob.Get(), g_quadResources);
+    g_graphics.CreateQuadResources(g_quadResources);
 }
 
 static void ConfigureQuadPipeline(ID3D11DeviceContext* context) {
     context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-    context->IASetInputLayout(nullptr);
     context->VSSetConstantBuffers(0, 1, g_quadResources.transformBuffer.GetAddressOf());
     context->VSSetShader(g_quadVS.Get(), nullptr, 0);
     context->PSSetSamplers(0, 1, g_quadResources.sampler.GetAddressOf());
@@ -174,13 +162,9 @@ static bool PresentQuad(ID3D11DeviceContext* context) {
 
     D3D11_VIEWPORT viewport = { 0, 0, (float)width, (float)height, 0.0f, 1.0f };
     context->RSSetViewports(1, &viewport);
-    Vertex fullscreenVertices[4] = {};
     DisplayGeometry geometry = {};
     if (!BuildDisplayGeometry(2.0f * g_quadHalfHeight, XMConvertToRadians(g_tiltDeg), &geometry))
         return false;
-    BuildFullscreenVertices(fullscreenVertices);
-    context->UpdateSubresource(g_quadResources.vertexBuffer.Get(), 0, nullptr, fullscreenVertices, 0, 0);
-
     const float clear[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
     context->OMSetRenderTargets(1, &backRTV, nullptr);
     context->ClearRenderTargetView(backRTV, clear);
@@ -296,7 +280,6 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int) {
             if (aspectRatio > 0.0f && g_quadHalfHeight != 1.0f / aspectRatio)
             {
                 g_quadHalfHeight = 1.0f / aspectRatio;
-                g_graphics.CreateQuadVertexBuffer(2.0f, 2.0f * g_quadHalfHeight, g_quadResources.vertexBuffer);
             }
         }
 
