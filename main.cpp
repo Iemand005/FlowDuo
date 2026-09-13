@@ -238,9 +238,6 @@ static void UpdateTiltFromHinge()
     g_tiltDeg = g_hingeSmooth - 90.0f - g_calibOffset;
 
     g_tiltDeg = max(g_tiltDeg, 0);
-
-    if (g_tiltDeg > 0) ToggleWindowVisible(hwnd, true);
-    else ToggleWindowVisible(hwnd, false);
     //g_fadeEnd = g_tiltDeg / 90;
 
     g_blurRadius = g_tiltDeg;
@@ -524,6 +521,9 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nShowCmd)
 
         UpdateDesktopFrame(device, context);
         UpdateTiltFromHinge();
+
+        if (g_tiltDeg > 0) ToggleWindowVisible(hwnd, true);
+        else ToggleWindowVisible(hwnd, false);
         PresentQuad(device, context, swapChain);
         Sleep(16);
     }
