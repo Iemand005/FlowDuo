@@ -46,8 +46,7 @@ float4 main(VSOut i) : SV_TARGET
     float sampleV = 1.0 - v;
 
     float lidDisplayDistance = abs(dot(i.lidWorld - dispOrigin.xyz, dispNormal.xyz));
-    float blurT = saturate((lidDisplayDistance - blurMetrics.x) / max(blurMetrics.y - blurMetrics.x, 0.0001));
-    float radiusPx = blurT * blurMetrics.z;
+    float radiusPx = lidDisplayDistance * blurMetrics.z;
     uint textureWidth;
     uint textureHeight;
     displayTex.GetDimensions(textureWidth, textureHeight);

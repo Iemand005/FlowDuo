@@ -30,9 +30,7 @@ static Graphics::QuadResources g_quadResources;
 static float g_quadHalfHeight = 1.0f;
 
 static float g_fadeStrength = 0.0f;
-static float g_blurNear = 0.0f;
-static float g_blurFar = 3.0f;
-static float g_maxBlurPixels = 20.0f;
+static float g_blurPixelsPerWorldUnit = 10.0f;
 static DWORD g_hingeSampleIntervalMs = 1;
 static UINT g_presentSyncInterval = 1;
 static XMFLOAT3 g_headPosition = { 0.0f, 0.0f, 3.0f };
@@ -212,7 +210,7 @@ static bool PresentQuad(ID3D11DeviceContext* context) {
     XMStoreFloat4(&sceneConstants.lidTL, geometry.lidTopLeft);
     XMStoreFloat4(&sceneConstants.lidTR, geometry.lidTopRight);
     sceneConstants.displayMetrics = { 2.0f, 2.0f * g_quadHalfHeight, 0.0f, 0.0f };
-    sceneConstants.blurMetrics = { g_blurNear, g_blurFar, g_maxBlurPixels, 0.0f };
+    sceneConstants.blurMetrics = { 0.0f, 0.0f, g_blurPixelsPerWorldUnit, 0.0f };
     sceneConstants.effectMetrics = { g_fadeStrength, 0.0f, 0.0f, 0.0f };
     context->UpdateSubresource(g_quadResources.transformBuffer.Get(), 0, nullptr, &sceneConstants, 0, 0);
     context->VSSetConstantBuffers(0, 1, g_quadResources.transformBuffer.GetAddressOf());
