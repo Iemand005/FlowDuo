@@ -66,7 +66,7 @@ static void Calibrate(HWND hwnd) {
 }
 
 void ToggleWindowVisible(HWND hwnd, bool visible) {
-    ShowWindow(hwnd, visible ? SW_HIDE : SW_SHOW);
+    ShowWindow(hwnd, visible ? SW_SHOW : SW_HIDE);
 }
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -522,7 +522,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nShowCmd)
         UpdateDesktopFrame(device, context);
         UpdateTiltFromHinge();
 
-        if (g_tiltDeg > 0) ToggleWindowVisible(hwnd, true);
+         if (g_tiltDeg > 0) ToggleWindowVisible(hwnd, true);
         else ToggleWindowVisible(hwnd, false);
         PresentQuad(device, context, swapChain);
         Sleep(16);
