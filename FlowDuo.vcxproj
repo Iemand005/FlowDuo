@@ -168,6 +168,9 @@
   <ItemGroup>
     <ResourceCompile Include="FlowDuo.rc" />
   </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="QuadVertex.hlsl" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

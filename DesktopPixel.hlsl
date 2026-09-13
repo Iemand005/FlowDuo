@@ -52,37 +52,27 @@ float4 main(VSOut i) : SV_TARGET
     float4 color = displayTex.Sample(borderSamp, sampleUv);
     if (radiusPx > 0.5)
     {
-        const float2 ringInner[8] = {
-            float2(0.35, 0.0), float2(-0.35, 0.0),
-            float2(0.0, 0.35), float2(0.0, -0.35),
-            float2(0.2475, 0.2475), float2(-0.2475, 0.2475),
-            float2(0.2475, -0.2475), float2(-0.2475, -0.2475)
-        };
-        const float2 ringMiddle[8] = {
-            float2(0.62, 0.0), float2(-0.62, 0.0),
-            float2(0.0, 0.62), float2(0.0, -0.62),
-            float2(0.4384, 0.4384), float2(-0.4384, 0.4384),
-            float2(0.4384, -0.4384), float2(-0.4384, -0.4384)
-        };
-        const float2 ringOuter[8] = {
-            float2(0.91, 0.0), float2(-0.91, 0.0),
-            float2(0.0, 0.91), float2(0.0, -0.91),
-            float2(0.6435, 0.6435), float2(-0.6435, 0.6435),
-            float2(0.6435, -0.6435), float2(-0.6435, -0.6435)
-        };
+        static const int SAMPLE_COUNT = 28;
+        static const float GOLDEN_ANGLE = 2.39996323; // radians (~137.5 degrees)
+
         float2 blurStep = texel * radiusPx;
-        float innerWeight = 0.18;
-        float middleWeight = 0.09;
-        float outerWeight = 0.035;
-        float weightSum = 1.0 + 8.0 * (innerWeight + middleWeight + outerWeight);
+        float sigma = 0.45; // 0.3 = tighter/sharper falloff, 0.6 = softer/more spread
         float4 sum = color;
+        float weightSum = 1.0;
+
         [unroll]
-        for (int tap = 0; tap < 8; ++tap)
+        for (int tap = 0; tap < SAMPLE_COUNT; ++tap)
         {
-            sum += displayTex.Sample(borderSamp, sampleUv + ringInner[tap] * blurStep) * innerWeight;
-            sum += displayTex.Sample(borderSamp, sampleUv + ringMiddle[tap] * blurStep) * middleWeight;
-            sum += displayTex.Sample(borderSamp, sampleUv + ringOuter[tap] * blurStep) * outerWeight;
+            float t = (tap + 0.5) / SAMPLE_COUNT;
+            float r = sqrt(t); // sqrt gives uniform area coverage across the disk
+            float theta = tap * GOLDEN_ANGLE;
+            float2 offset = float2(cos(theta), sin(theta)) * r;
+
+            float weight = exp(-(r * r) / (2.0 * sigma * sigma));
+            sum += displayTex.Sample(borderSamp, sampleUv + offset * blurStep) * weight;
+            weightSum += weight;
         }
+
         color = sum / weightSum;
     }
 
