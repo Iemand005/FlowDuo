@@ -168,7 +168,7 @@ static void UpdateTiltFromHinge()
     g_fadeStrength = min(g_tiltDeg / 60, 1);
 }
 
-static void InitDesktopCapture(ID3D11Device* device)
+static bool InitDesktopCapture(ID3D11Device* device)
 {
     ComPtr<IDXGIDevice> dxgiDevice;
     CheckHr(device->QueryInterface(IID_PPV_ARGS(&dxgiDevice)));
@@ -183,16 +183,13 @@ static void InitDesktopCapture(ID3D11Device* device)
     CheckHr(output->QueryInterface(IID_PPV_ARGS(&output1)));
 
     CheckHr(output1->DuplicateOutput(device, &g_duplication));
+    return g_duplication;
 }
 
 static bool UpdateDesktopFrame(ID3D11Device* device, ID3D11DeviceContext* context)
 {
     if (!g_duplication)
-    {
-        InitDesktopCapture(device);
-        if (!g_duplication)
-            return false;
-    }
+        if (!InitDesktopCapture(device)) return false;
 
     DXGI_OUTDUPL_FRAME_INFO frameInfo = {};
     ComPtr<IDXGIResource> resource;
