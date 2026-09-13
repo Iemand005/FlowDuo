@@ -52,7 +52,7 @@ static float g_blurRadius = 20.0f;
 static float g_blurRadiusMultiplier = 2.0f;
 static float g_blurRadiusMin = 0.0f;
 static DWORD g_hingeSampleIntervalMs = 8.33;
-static float g_effectResolutionScale = 0.5f;
+static float g_effectResolutionScale = 0.7f;
 
 static bool calibrated = false;
 
