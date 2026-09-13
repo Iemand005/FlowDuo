@@ -29,6 +29,6 @@ VSOut main(uint vertexId : SV_VertexID)
     float3 bottom = lerp(lidBL.xyz, lidBR.xyz, st.x);
     float3 top = lerp(lidTL.xyz, lidTR.xyz, st.x);
     o.st = st;
-    o.lidWorld = lerp(bottom, top, st.y);
+    o.lidWorld = lerp(bottom, top, 1.0 - st.y);
     return o;
 }
