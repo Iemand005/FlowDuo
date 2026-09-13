@@ -151,20 +151,20 @@ static bool BuildDisplayGeometry(float screenHeight, float hingeAngle, DisplayGe
     return true;
 }
 
-static void BuildProjectedDisplayVertices(const DisplayGeometry& geometry, Vertex* vertices) {
+static void BuildLidVertices(const DisplayGeometry& geometry, Vertex* vertices) {
     const XMVECTOR positions[] = {
         geometry.virtualBottomLeft,
         geometry.virtualBottomRight,
-        geometry.projectedTopRight,
-        geometry.projectedTopLeft
+        geometry.lidTopRight,
+        geometry.lidTopLeft
     };
     for (int index = 0; index < 4; ++index)
         XMStoreFloat3(reinterpret_cast<XMFLOAT3*>(&vertices[index].position), positions[index]);
 
     vertices[0].textureCoordinate = { 0.0f, 1.0f };
     vertices[1].textureCoordinate = { 1.0f, 1.0f };
-    vertices[2].textureCoordinate = { 1.0f, 0.0f };
-    vertices[3].textureCoordinate = { 0.0f, 0.0f };
+    vertices[2].textureCoordinate = geometry.projectedTopRightUv;
+    vertices[3].textureCoordinate = geometry.projectedTopLeftUv;
 }
 
 static void Calibrate() {
@@ -292,7 +292,7 @@ static bool PresentQuad(ID3D11DeviceContext* context) {
     DisplayGeometry geometry = {};
     if (!BuildDisplayGeometry(2.0f * g_quadHalfHeight, XMConvertToRadians(g_tiltDeg), &geometry))
         return false;
-    BuildProjectedDisplayVertices(geometry, virtualVertices);
+    BuildLidVertices(geometry, virtualVertices);
     context->UpdateSubresource(g_quadResources.vertexBuffer.Get(), 0, nullptr, virtualVertices, 0, 0);
 
     XMMATRIX world = XMMatrixIdentity();
