@@ -10,7 +10,7 @@
 #include <sensors.h>
 #pragma comment(lib, "sensorsapi.lib")
 
-#include "em.h"
+#include "AccelerometerReader.h"
 
 
 class HingeSensorReader
