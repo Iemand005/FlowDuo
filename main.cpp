@@ -171,13 +171,15 @@ static bool PresentQuad(ID3D11DeviceContext* context) {
     float visibleW = visibleH * aspect;
     float scale = max(visibleW / 2.0f, visibleH / (2.0f * g_quadHalfHeight));
 
-    float scaleMulti = g_tiltDeg / 100;
-    float scaleY = scale * (1 + scaleMulti) * 1;
+    float tiltRadians = XMConvertToRadians(g_tiltDeg);
+    float projectedHeight = max(0.45f, cosf(tiltRadians));
+    float projectionCompensation = min(1.0f / projectedHeight, 2.0f);
+    float scaleY = scale * projectionCompensation;
 
     XMMATRIX world =
         XMMatrixTranslation(0.0f, g_quadHalfHeight, 0.0f) *
         XMMatrixScaling(scale, scaleY, scale) *
-        XMMatrixRotationX(XMConvertToRadians(g_tiltDeg)) *
+        XMMatrixRotationX(tiltRadians) *
         XMMatrixTranslation(0.0f, -g_quadHalfHeight, 0.0f) *
         XMMatrixTranslation(0.0f, -(scale - 1.0f) * g_quadHalfHeight, 0.0f);
     XMMATRIX view = XMMatrixLookAtLH(XMVectorSet(0.0f, 0.0f, -3.0f, 1.0f), XMVectorZero(), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
