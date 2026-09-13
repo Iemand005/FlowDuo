@@ -67,8 +67,8 @@ void ToggleWindowVisible(HWND hwnd, bool visible) {
     bool trueHide = false;
     if (trueHide) ShowWindow(hwnd, visible ? SW_SHOW : SW_HIDE);
     else {
-        SetLayeredWindowAttributes(hwnd, 0, visible ? 1 : 0, LWA_ALPHA)
-    }
+        SetLayeredWindowAttributes(hwnd, 0, visible ? 1 : 0, LWA_ALPHA);
+    };
 }
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
