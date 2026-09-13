@@ -52,24 +52,28 @@ float4 main(VSOut i) : SV_TARGET
     float4 color = displayTex.Sample(borderSamp, sampleUv);
     if (radiusPx > 0.5)
     {
-        const int kernelRadius = 8;
-        float sigma = max(radiusPx * 0.5, 0.75);
-        float inverseTwoSigmaSquared = 0.5 / (sigma * sigma);
-        float2 kernelStep = texel * (radiusPx / (float)kernelRadius);
-        float4 sum = float4(0.0, 0.0, 0.0, 0.0);
-        float weightSum = 0.0;
+        const float2 ringInner[8] = {
+            float2(0.35, 0.0), float2(-0.35, 0.0),
+            float2(0.0, 0.35), float2(0.0, -0.35),
+            float2(0.2475, 0.2475), float2(-0.2475, 0.2475),
+            float2(0.2475, -0.2475), float2(-0.2475, -0.2475)
+        };
+        const float2 ringOuter[8] = {
+            float2(0.75, 0.0), float2(-0.75, 0.0),
+            float2(0.0, 0.75), float2(0.0, -0.75),
+            float2(0.5303, 0.5303), float2(-0.5303, 0.5303),
+            float2(0.5303, -0.5303), float2(-0.5303, -0.5303)
+        };
+        float2 blurStep = texel * radiusPx;
+        float innerWeight = 0.22;
+        float outerWeight = 0.07;
+        float weightSum = 1.0 + 8.0 * innerWeight + 8.0 * outerWeight;
+        float4 sum = color;
         [unroll]
-        for (int y = -kernelRadius; y <= kernelRadius; ++y)
+        for (int tap = 0; tap < 8; ++tap)
         {
-            [unroll]
-            for (int x = -kernelRadius; x <= kernelRadius; ++x)
-            {
-                float2 offset = float2((float)x, (float)y) * kernelStep;
-                float distanceSquared = (float)(x * x + y * y) * (radiusPx / (float)kernelRadius) * (radiusPx / (float)kernelRadius);
-                float weight = exp(-distanceSquared * inverseTwoSigmaSquared);
-                sum += displayTex.Sample(borderSamp, sampleUv + offset) * weight;
-                weightSum += weight;
-            }
+            sum += displayTex.Sample(borderSamp, sampleUv + ringInner[tap] * blurStep) * innerWeight;
+            sum += displayTex.Sample(borderSamp, sampleUv + ringOuter[tap] * blurStep) * outerWeight;
         }
         color = sum / weightSum;
     }
