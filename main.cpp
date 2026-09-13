@@ -4,9 +4,6 @@
 #include <cstring>
 #include <stdexcept>
 #include <cmath>
-#include <commctrl.h>
-
-#pragma comment(lib, "comctl32.lib")
 
 using namespace CubeRenderer;
 using namespace Microsoft::WRL;
@@ -50,13 +47,10 @@ static float g_fadeEnd = 1.0f;
 static float g_fadeStrength = 0.0f;
 static float g_blurRadius = 20.0f;
 static float g_blurRadiusMultiplier = 2.0f;
-static float g_blurRadiusMin = 0.0f;
-static DWORD g_hingeSampleIntervalMs = 8.33;
+static DWORD g_hingeSampleIntervalMs = 8;
 static float g_effectResolutionScale = 0.7f;
 
 static bool calibrated = false;
-
-static bool trueHide = false;
 
 static void ResetDesktopCapture()
 {
@@ -72,7 +66,7 @@ static void ResetDesktopCapture()
     g_desktopTexture.Reset();
 }
 
-static void Calibrate(HWND hwnd) {
+static void Calibrate() {
     if (!g_hingeReader.IsReady()) return;
     calibrated = true;
     float hinge = 0;
@@ -89,8 +83,6 @@ void ToggleWindowVisible(HWND hwnd, bool visible) {
     if (!visible)
         ResetDesktopCapture();
     SetLayeredWindowAttributes(hwnd, 0, visible ? 255 : 0, LWA_ALPHA);
-    if (trueHide)
-        ShowWindow(hwnd, visible ? SW_SHOW : SW_HIDE);
 }
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -103,7 +95,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         return 0;
     case WM_KEYDOWN:
         if (wParam == VK_SPACE)
-            Calibrate(hwnd);
+            Calibrate();
         return 0;
     case WM_DESTROY:
         PostQuitMessage(0);
@@ -376,8 +368,6 @@ static bool PresentQuad(ID3D11DeviceContext* context)
     float scaleMulti = g_tiltDeg / 270;
     float scaleY = scale * (1 + scaleMulti) * 1;
 
-    float topY = g_quadHalfHeight * (2.0f * scaleY - 1.0f);
-
     XMMATRIX world =
         XMMatrixTranslation(0.0f, g_quadHalfHeight, 0.0f) *
         XMMatrixScaling(scale, scaleY, scale) *
@@ -432,7 +422,7 @@ static bool PresentQuad(ID3D11DeviceContext* context)
     const float texelX = 1.0f / (float)effectWidth;
     const float texelY = 1.0f / (float)effectHeight;
 
-    const XMFLOAT4 blurRanges(g_blurRadiusMin, g_blurRadius * g_effectResolutionScale, 0.0f, 0.0f);
+    const XMFLOAT4 blurRanges(0.0f, g_blurRadius * g_effectResolutionScale, 0.0f, 0.0f);
 
     const XMFLOAT4 blurH(texelX, texelY, 0.0f, 0.0f);
     const XMFLOAT4 blurH2 = blurRanges;
@@ -461,7 +451,7 @@ static bool PresentQuad(ID3D11DeviceContext* context)
     return true;
 }
 
-int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nShowCmd)
+int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int)
 {
     WNDCLASSEXW wc = {};
     wc.cbSize = sizeof(wc);
@@ -471,23 +461,17 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nShowCmd)
     wc.lpszClassName = L"FlowDuoWindow";
     RegisterClassExW(&wc);
 
-    BOOL borderless = true;
     HWND hwnd = CreateWindowExW(
         WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_LAYERED | WS_EX_TRANSPARENT, wc.lpszClassName, L"FlowDuo",
-        borderless ? WS_POPUP : WS_OVERLAPPEDWINDOW,
+        WS_POPUP,
         0, 0,
         GetSystemMetrics(SM_CXSCREEN),
         GetSystemMetrics(SM_CYSCREEN),
         nullptr, nullptr, hInstance, nullptr);
 
     SetLayeredWindowAttributes(hwnd, 0, 0, LWA_ALPHA);
-    ShowWindow(hwnd, nShowCmd);
-    bool excludeFromCapture = true;
-    if (excludeFromCapture)
-        SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE);
-
-    INITCOMMONCONTROLSEX icc = { sizeof(icc), ICC_BAR_CLASSES };
-    InitCommonControlsEx(&icc);
+    ShowWindow(hwnd, SW_SHOW);
+    SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE);
 
     g_graphics.InitForCustomRendering(hwnd);
     g_hingeReader.Init();
@@ -509,7 +493,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nShowCmd)
             DispatchMessageW(&msg);
         }
 
-        if (!calibrated) Calibrate(hwnd);
+        if (!calibrated) Calibrate();
 
         UpdateTiltFromHinge();
 
@@ -521,13 +505,9 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nShowCmd)
             continue;
         }
 
-        if (!g_windowVisible)
-            ShowWindow(hwnd, SW_HIDE);
-
         bool hasFreshFrame = UpdateDesktopFrame(device, context);
         if (!g_windowVisible && !hasFreshFrame)
         {
-            ShowWindow(hwnd, SW_HIDE);
             Sleep(1);
             continue;
         }
@@ -535,7 +515,6 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nShowCmd)
         bool presented = PresentQuad(context);
         if (presented)
         {
-            ShowWindow(hwnd, SW_SHOW);
             ToggleWindowVisible(hwnd, true);
         }
     }
