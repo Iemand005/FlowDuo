@@ -15,7 +15,7 @@ static Graphics g_graphics;
 static bool g_graphicsReady = false;
 
 static HWND g_tiltSlider = nullptr;
-static float g_tiltDeg = 55.0f;
+static float g_tiltDeg = 0.0f;
 
 static HingeSensorReader g_hingeReader;
 static float g_hingeSmooth = 0.0f;
@@ -240,7 +240,7 @@ static void UpdateTiltFromHinge()
 
     g_blurRadius = g_tiltDeg * g_blurRadiusMultiplier;
 
-    g_fadeStrength = g_tiltDeg / 90;
+    g_fadeStrength = g_tiltDeg / 40;
 
     SendMessageW(g_tiltSlider, TBM_SETPOS, TRUE, (LPARAM)(int)g_tiltDeg);
 }
