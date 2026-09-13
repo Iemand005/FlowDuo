@@ -40,9 +40,6 @@ float4 main(VSOut i) : SV_TARGET
     float u = dot(local, dispRightAxis.xyz) / displayMetrics.x;
     float v = dot(local, dispUpAxis.xyz) / displayMetrics.y;
 
-    if (u < 0.0 || u > 1.0 || v < 0.0 || v > 1.0)
-        return float4(0.0, 0.0, 0.0, 1.0);
-
     float sampleV = 1.0 - v;
 
     float lidDisplayDistance = abs(dot(i.lidWorld - dispOrigin.xyz, dispNormal.xyz));
