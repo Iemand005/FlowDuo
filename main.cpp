@@ -167,23 +167,14 @@ static bool PresentQuad(ID3D11DeviceContext* context) {
     context->RSSetViewports(1, &viewport);
     float aspect = (float)width / (float)height;
     float fov = 40.0f;
-    float visibleH = 2.0f * 3.0f * tanf(XMConvertToRadians(fov / 2.0f));
-    float visibleW = visibleH * aspect;
-    float scale = max(visibleW / 2.0f, visibleH / (2.0f * g_quadHalfHeight));
-
     float tiltRadians = XMConvertToRadians(g_tiltDeg);
-    float projectedHeight = max(0.45f, cosf(tiltRadians));
-    float projectionCompensation = min(1.0f / projectedHeight, 2.0f);
-    float scaleY = scale * projectionCompensation;
 
+    // The quad's top edge is the physical hinge axis. Its corners are
+    // transformed by the actual hinge rotation before projection.
     XMMATRIX world =
-        XMMatrixTranslation(0.0f, g_quadHalfHeight, 0.0f) *
-        XMMatrixScaling(scale, scaleY, scale) *
-        XMMatrixRotationX(tiltRadians) *
         XMMatrixTranslation(0.0f, -g_quadHalfHeight, 0.0f) *
-        XMMatrixTranslation(0.0f,
-                   (1.0f + scale - 2.0f * scaleY) * g_quadHalfHeight,
-                   0.0f);
+        XMMatrixRotationX(tiltRadians) *
+        XMMatrixTranslation(0.0f, g_quadHalfHeight, 0.0f);
     XMMATRIX view = XMMatrixLookAtLH(XMVectorSet(0.0f, 0.0f, -3.0f, 1.0f), XMVectorZero(), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
     XMMATRIX proj = XMMatrixPerspectiveFovLH(XMConvertToRadians(fov), aspect, 0.1f, 100.0f);
     XMMATRIX transform = XMMatrixTranspose(world * view * proj);
