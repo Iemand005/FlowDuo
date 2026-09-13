@@ -49,7 +49,7 @@ static float g_fadeStart = 0.2f;
 static float g_fadeEnd = 1.0f;
 static float g_fadeStrength = 0.0f;
 static float g_blurRadius = 20.0f;
-static float g_blurRadiusMultiplier = 3.0f;
+static float g_blurRadiusMultiplier = 2.0f;
 static float g_blurRadiusMin = 0.0f;
 
 static bool calibrated = false;
@@ -144,8 +144,8 @@ static void CreateQuadPipeline(ID3D11Device* device)
         "{\n"
         "    float2 texel = float2(texelDir.x, texelDir.y);\n"
         "    float2 dir = lerp(float2(texel.x, 0.0), float2(0.0, texel.y), texelDir.z);\n"
-        "    float sigma = lerp(ranges.x, ranges.y, 1.0 - i.uv.y);\n"
-        "    int halfK = min(64, (int)(sigma * 2.5 + 0.5));\n"
+        "    float sigma = max(0.001, lerp(ranges.x, ranges.y, 1.0 - i.uv.y));\n"
+        "    int halfK = min(32, (int)(sigma * 2.5 + 0.5));\n"
         "    float wsum = 0.0;\n"
         "    float4 c = 0.0;\n"
         "    [loop]\n"
@@ -231,15 +231,16 @@ static void UpdateTiltFromHinge()
         return;
 
     DWORD now = GetTickCount();
-    if (now - g_lastHingeRead < 100)
+    if (now - g_lastHingeRead < 16)
         return;
+    DWORD elapsed = g_lastHingeRead == 0 ? 16 : now - g_lastHingeRead;
     g_lastHingeRead = now;
 
     float hinge = 0;
     if (FAILED(g_hingeReader.GetHingeAngleFloat(&hinge)))
         return;
 
-    float smoothAlpha = 0.5f;
+    float smoothAlpha = 1.0f - expf(-(float)elapsed / 55.0f);
     g_hingeSmooth += smoothAlpha  * ((float)hinge - g_hingeSmooth);
     g_tiltDeg = g_hingeSmooth - 90.0f - g_calibOffset;
 
@@ -278,7 +279,7 @@ static void UpdateDesktopFrame(ID3D11Device* device, ID3D11DeviceContext* contex
 
     DXGI_OUTDUPL_FRAME_INFO frameInfo = {};
     ComPtr<IDXGIResource> resource;
-    HRESULT hr = g_duplication->AcquireNextFrame(4, &frameInfo, &resource);
+    HRESULT hr = g_duplication->AcquireNextFrame(0, &frameInfo, &resource);
 
     if (hr == DXGI_ERROR_WAIT_TIMEOUT || hr == DXGI_ERROR_NOT_CURRENTLY_AVAILABLE || FAILED(hr))
     {
