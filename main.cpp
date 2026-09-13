@@ -375,7 +375,7 @@ static void PresentQuad(ID3D11Device* device, ID3D11DeviceContext* context, IDXG
     float visibleW = visibleH * aspect;
     float scale = max(visibleW / 2.0f, visibleH / (2.0f * g_quadHalfHeight));
 
-    float scaleMulti = g_tiltDeg / 90;
+    float scaleMulti = g_tiltDeg / 270;
     float scaleY = scale * (1 + scaleMulti) * 1;
 
     float topY = g_quadHalfHeight * (2.0f * scaleY - 1.0f);
