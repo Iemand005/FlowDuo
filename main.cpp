@@ -19,7 +19,7 @@ static float g_tiltDeg = 0.0f;
 
 static HingeSensorReader g_hingeReader;
 static float g_hingeSmooth = 0.0f;
-static float g_calibOffset = 0.0f;
+static float g_calibOffset = 90.0f;
 static DWORD g_lastHingeRead = 0;
 
 static ComPtr<IDXGIOutputDuplication> g_duplication;
@@ -58,8 +58,11 @@ static float g_blurRadius = 20.0f;
 static float g_blurRadiusMultiplier = 3.0f;
 static float g_blurRadiusMin = 0.0f;
 
+bool calibrated = false;
+
 static void Calibrate(HWND hwnd) {
     if (!g_hingeReader.IsReady()) return;
+    calibrated = true;
     g_calibOffset = g_hingeSmooth - 89.0f;  
 }
 
@@ -506,7 +509,6 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nShowCmd)
     g_graphics.InitForCustomRendering(hwnd);
     g_hingeReader.Init();
     g_hingeReader.useRawAccelerometer = true;
-    Calibrate(hwnd);
 
     ID3D11Device* device = g_graphics.GetDevice();
     ID3D11DeviceContext* context = g_graphics.GetContext();
@@ -526,6 +528,8 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nShowCmd)
             TranslateMessage(&msg);
             DispatchMessageW(&msg);
         }
+
+        if (!calibrated) Calibrate(hwnd);
 
         UpdateDesktopFrame(device, context);
 
