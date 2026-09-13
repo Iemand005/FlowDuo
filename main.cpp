@@ -163,8 +163,10 @@ static void BuildLidVertices(const DisplayGeometry& geometry, Vertex* vertices) 
 
     vertices[0].textureCoordinate = { 0.0f, 1.0f };
     vertices[1].textureCoordinate = { 1.0f, 1.0f };
-    vertices[2].textureCoordinate = geometry.projectedTopRightUv;
-    vertices[3].textureCoordinate = geometry.projectedTopLeftUv;
+    vertices[2].textureCoordinate.u = geometry.projectedTopRightUv.x;
+    vertices[2].textureCoordinate.v = geometry.projectedTopRightUv.y;
+    vertices[3].textureCoordinate.u = geometry.projectedTopLeftUv.x;
+    vertices[3].textureCoordinate.v = geometry.projectedTopLeftUv.y;
 }
 
 static void Calibrate() {
