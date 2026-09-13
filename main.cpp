@@ -49,80 +49,94 @@ static bool g_highQualityBlur = true;
 
 static bool calibrated = false;
 
-static void BuildVirtualDisplayVertices(
-    float viewportWidth,
-    float viewportHeight,
-    const XMMATRIX& view,
-    const XMMATRIX& projection,
-    Vertex* vertices) {
-    const XMMATRIX calibratedWorld = XMMatrixIdentity();
-    const XMVECTOR referenceScreenPoint = XMVector3Project(
-        XMVectorZero(),
-        0.0f,
-        0.0f,
-        viewportWidth,
-        viewportHeight,
-        0.0f,
-        1.0f,
-        projection,
-        view,
-        calibratedWorld);
-    const float referenceDepth = XMVectorGetZ(referenceScreenPoint);
-    const XMVECTOR bottomLeft = XMVector3Unproject(
-        XMVectorSet(0.0f, viewportHeight, referenceDepth, 1.0f),
-        0.0f,
-        0.0f,
-        viewportWidth,
-        viewportHeight,
-        0.0f,
-        1.0f,
-        projection,
-        view,
-        calibratedWorld);
-    const XMVECTOR bottomRight = XMVector3Unproject(
-        XMVectorSet(viewportWidth, viewportHeight, referenceDepth, 1.0f),
-        0.0f,
-        0.0f,
-        viewportWidth,
-        viewportHeight,
-        0.0f,
-        1.0f,
-        projection,
-        view,
-        calibratedWorld);
-    const XMVECTOR topLeftReference = XMVector3Unproject(
-        XMVectorSet(0.0f, 0.0f, referenceDepth, 1.0f),
-        0.0f,
-        0.0f,
-        viewportWidth,
-        viewportHeight,
-        0.0f,
-        1.0f,
-        projection,
-        view,
-        calibratedWorld);
-    const XMVECTOR topRightReference = XMVector3Unproject(
-        XMVectorSet(viewportWidth, 0.0f, referenceDepth, 1.0f),
-        0.0f,
-        0.0f,
-        viewportWidth,
-        viewportHeight,
-        0.0f,
-        1.0f,
-        projection,
-        view,
-        calibratedWorld);
+struct DisplayGeometry {
+    XMVECTOR virtualBottomLeft;
+    XMVECTOR virtualBottomRight;
+    XMVECTOR virtualTopLeft;
+    XMVECTOR virtualTopRight;
+    XMVECTOR lidTopLeft;
+    XMVECTOR lidTopRight;
+    XMVECTOR projectedTopLeft;
+    XMVECTOR projectedTopRight;
+};
 
-    XMFLOAT3 positions[4] = {};
-    XMStoreFloat3(&positions[0], bottomLeft);
-    XMStoreFloat3(&positions[1], bottomRight);
-    XMStoreFloat3(&positions[2], topRightReference);
-    XMStoreFloat3(&positions[3], topLeftReference);
-    for (int index = 0; index < 4; ++index) {
-        vertices[index].position.x = positions[index].x;
-        vertices[index].position.y = positions[index].y;
-        vertices[index].position.z = positions[index].z;
-    }
+static XMVECTOR RotateAroundAxis(const XMVECTOR& vector, const XMVECTOR& axis, float angle) {
+    const XMVECTOR unitAxis = XMVector3Normalize(axis);
+    const float cosine = cosf(angle);
+    const float sine = sinf(angle);
+    const XMVECTOR parallel = XMVectorScale(
+        unitAxis,
+        XMVectorGetX(XMVector3Dot(unitAxis, vector)) * (1.0f - cosine));
+    return XMVectorAdd(
+        XMVectorAdd(XMVectorScale(vector, cosine), XMVectorScale(XMVector3Cross(unitAxis, vector), sine)),
+        parallel);
+}
+
+static bool RayPlaneIntersection(
+    const XMVECTOR& rayOrigin,
+    const XMVECTOR& ray,
+    const XMVECTOR& planePoint,
+    const XMVECTOR& planeNormal,
+    XMVECTOR* intersection) {
+    constexpr float epsilon = 1.0e-5f;
+    const float denominator = XMVectorGetX(XMVector3Dot(ray, planeNormal));
+    if (fabsf(denominator) < epsilon)
+        return false;
+
+    const float distance = XMVectorGetX(XMVector3Dot(
+        XMVectorSubtract(planePoint, rayOrigin), planeNormal)) / denominator;
+    if (distance < epsilon)
+        return false;
+
+    *intersection = XMVectorAdd(rayOrigin, XMVectorScale(ray, distance));
+    return true;
+}
+
+static bool BuildDisplayGeometry(float screenHeight, float hingeAngle, DisplayGeometry* geometry) {
+    const float screenWidth = 2.0f;
+    const float halfHeight = screenHeight * 0.5f;
+    const XMVECTOR virtualBottomLeft = XMVectorSet(-screenWidth * 0.5f, -halfHeight, 0.0f, 1.0f);
+    const XMVECTOR virtualBottomRight = XMVectorSet(screenWidth * 0.5f, -halfHeight, 0.0f, 1.0f);
+    const XMVECTOR virtualTopLeft = XMVectorSet(-screenWidth * 0.5f, halfHeight, 0.0f, 1.0f);
+    const XMVECTOR virtualTopRight = XMVectorSet(screenWidth * 0.5f, halfHeight, 0.0f, 1.0f);
+
+    const XMVECTOR hingeAxis = XMVector3Normalize(XMVectorSubtract(virtualBottomRight, virtualBottomLeft));
+    const XMVECTOR displayHeight = XMVector3Normalize(XMVectorSubtract(virtualTopLeft, virtualBottomLeft));
+    const XMVECTOR lidHeight = XMVectorScale(
+        RotateAroundAxis(displayHeight, hingeAxis, -hingeAngle), screenHeight);
+    const XMVECTOR lidTopLeft = XMVectorAdd(virtualBottomLeft, lidHeight);
+    const XMVECTOR lidTopRight = XMVectorAdd(virtualBottomRight, lidHeight);
+
+    const XMVECTOR head = XMVectorSet(0.0f, 0.0f, -3.0f, 1.0f);
+    const XMVECTOR virtualNormal = XMVector3Normalize(XMVector3Cross(
+        XMVectorSubtract(virtualBottomRight, virtualBottomLeft),
+        XMVectorSubtract(virtualTopLeft, virtualBottomLeft)));
+    XMVECTOR projectedTopLeft;
+    XMVECTOR projectedTopRight;
+    if (!RayPlaneIntersection(head, XMVectorSubtract(lidTopLeft, head), virtualBottomLeft, virtualNormal, &projectedTopLeft) ||
+        !RayPlaneIntersection(head, XMVectorSubtract(lidTopRight, head), virtualBottomLeft, virtualNormal, &projectedTopRight))
+        return false;
+
+    geometry->virtualBottomLeft = virtualBottomLeft;
+    geometry->virtualBottomRight = virtualBottomRight;
+    geometry->virtualTopLeft = virtualTopLeft;
+    geometry->virtualTopRight = virtualTopRight;
+    geometry->lidTopLeft = lidTopLeft;
+    geometry->lidTopRight = lidTopRight;
+    geometry->projectedTopLeft = projectedTopLeft;
+    geometry->projectedTopRight = projectedTopRight;
+    return true;
+}
+
+static void BuildProjectedDisplayVertices(const DisplayGeometry& geometry, Vertex* vertices) {
+    const XMVECTOR positions[] = {
+        geometry.virtualBottomLeft,
+        geometry.virtualBottomRight,
+        geometry.projectedTopRight,
+        geometry.projectedTopLeft
+    };
+    for (int index = 0; index < 4; ++index)
+        XMStoreFloat3(reinterpret_cast<XMFLOAT3*>(&vertices[index].position), positions[index]);
 
     vertices[0].textureCoordinate = { 0.0f, 1.0f };
     vertices[1].textureCoordinate = { 1.0f, 1.0f };
@@ -248,15 +262,14 @@ static bool PresentQuad(ID3D11DeviceContext* context) {
     context->RSSetViewports(1, &viewport);
     float aspect = (float)width / (float)height;
     float fov = 40.0f;
-    XMMATRIX view = XMMatrixLookAtLH(XMVectorSet(0.0f, 0.0f, -3.0f, 1.0f), XMVectorZero(), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
+    const XMVECTOR head = XMVectorSet(0.0f, 0.0f, -3.0f, 1.0f);
+    XMMATRIX view = XMMatrixLookAtLH(head, XMVectorZero(), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
     XMMATRIX proj = XMMatrixPerspectiveFovLH(XMConvertToRadians(fov), aspect, 0.1f, 100.0f);
     Vertex virtualVertices[4] = {};
-    BuildVirtualDisplayVertices(
-        (float)effectWidth,
-        (float)effectHeight,
-        view,
-        proj,
-        virtualVertices);
+    DisplayGeometry geometry = {};
+    if (!BuildDisplayGeometry(2.0f * g_quadHalfHeight, XMConvertToRadians(g_tiltDeg), &geometry))
+        return false;
+    BuildProjectedDisplayVertices(geometry, virtualVertices);
     context->UpdateSubresource(g_quadResources.vertexBuffer.Get(), 0, nullptr, virtualVertices, 0, 0);
 
     XMMATRIX world = XMMatrixIdentity();
