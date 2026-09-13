@@ -74,8 +74,6 @@ static void BuildFullscreenVertices(Vertex* vertices) {
     vertices[1].textureCoordinate = { 1.0f, 0.0f };
     vertices[2].textureCoordinate = { 0.0f, 1.0f };
     vertices[3].textureCoordinate = { 1.0f, 1.0f };
-    for (int index = 0; index < 4; ++index)
-        vertices[index].blur = 0.0f;
 }
 
 static void Calibrate() {
