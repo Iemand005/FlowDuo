@@ -94,7 +94,7 @@ static bool BuildDisplayGeometry(float screenHeight, float hingeAngle, DisplayGe
     const XMVECTOR hingeAxis = XMVector3Normalize(XMVectorSubtract(virtualBottomRight, virtualBottomLeft));
     const XMVECTOR displayHeight = XMVector3Normalize(XMVectorSubtract(virtualTopLeft, virtualBottomLeft));
     const XMVECTOR lidHeight = XMVectorScale(
-        RotateAroundAxis(displayHeight, hingeAxis, -hingeAngle), screenHeight);
+        RotateAroundAxis(displayHeight, hingeAxis, hingeAngle), screenHeight);
     const XMVECTOR lidTopLeft = XMVectorAdd(virtualBottomLeft, lidHeight);
     const XMVECTOR lidTopRight = XMVectorAdd(virtualBottomRight, lidHeight);
 
