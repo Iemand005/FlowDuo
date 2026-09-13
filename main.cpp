@@ -18,7 +18,7 @@ static HWND g_tiltSlider = nullptr;
 static float g_tiltDeg = 55.0f;
 
 static HingeSensorReader g_hingeReader;
-static float g_hingeSmooth = 5.0f;
+static float g_hingeSmooth = 0.0f;
 static float g_calibOffset = 0.0f;
 static DWORD g_lastHingeRead = 0;
 
@@ -53,7 +53,7 @@ static UINT g_sceneH = 0;
 
 static float g_fadeStart = 0.2f;
 static float g_fadeEnd = 1.0f;
-static float g_fadeStrength = 1.0f;
+static float g_fadeStrength = 0.0f;
 static float g_blurRadius = 20.0f;
 static float g_blurRadiusMin = 0.0f;
 
@@ -241,6 +241,8 @@ static void UpdateTiltFromHinge()
     //g_fadeEnd = g_tiltDeg / 90;
 
     g_blurRadius = g_tiltDeg;
+
+    g_fadeStrength = g_tiltDeg / 90;
 
     SendMessageW(g_tiltSlider, TBM_SETPOS, TRUE, (LPARAM)(int)g_tiltDeg);
 }
@@ -521,11 +523,12 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nShowCmd)
         }
 
         UpdateDesktopFrame(device, context);
-        UpdateTiltFromHinge();
+
+        UpdateTiltFromHinge();eep
 
          if (g_tiltDeg > 0) ToggleWindowVisible(hwnd, true);
         else ToggleWindowVisible(hwnd, false);
         PresentQuad(device, context, swapChain);
-        Sleep(16);
+        //Sleep(16);
     }
 }
