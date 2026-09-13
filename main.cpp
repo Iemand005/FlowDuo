@@ -480,7 +480,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nShowCmd)
         nullptr, nullptr, hInstance, nullptr);
 
     ShowWindow(hwnd, nShowCmd);
-    bool excludeFromCapture = false;
+    bool excludeFromCapture = true;
     if (excludeFromCapture)
         SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE);
 
