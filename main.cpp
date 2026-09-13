@@ -69,10 +69,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     switch (msg)
     {
-    case WM_HSCROLL:
-        if ((HWND)lParam == g_tiltSlider)
-            g_tiltDeg = (float)SendMessageW(g_tiltSlider, TBM_GETPOS, 0, 0);
-        return 0;
     case WM_SIZE:
         if (g_graphicsReady)
             g_graphics.Resize(hwnd);
