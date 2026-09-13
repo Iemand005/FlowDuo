@@ -264,10 +264,7 @@ static bool PresentQuad(ID3D11DeviceContext* context) {
     BuildLidVertices(geometry, lidVertices);
     context->UpdateSubresource(g_quadResources.vertexBuffer.Get(), 0, nullptr, lidVertices, 0, 0);
 
-    const XMVECTOR lidCenter = XMVectorScale(XMVectorAdd(
-        XMVectorAdd(geometry.virtualBottomLeft, geometry.virtualBottomRight),
-        XMVectorAdd(geometry.lidTopLeft, geometry.lidTopRight)), 0.25f);
-    XMMATRIX view = XMMatrixLookAtLH(head, lidCenter, XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
+    XMMATRIX view = XMMatrixLookAtLH(head, XMVectorZero(), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
     XMMATRIX transform = XMMatrixTranspose(view * proj);
 
     const float clear[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
