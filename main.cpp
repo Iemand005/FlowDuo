@@ -273,7 +273,7 @@ static void UpdateDesktopFrame(ID3D11Device* device, ID3D11DeviceContext* contex
 
     DXGI_OUTDUPL_FRAME_INFO frameInfo = {};
     ComPtr<IDXGIResource> resource;
-    HRESULT hr = g_duplication->AcquireNextFrame(3, &frameInfo, &resource);
+    HRESULT hr = g_duplication->AcquireNextFrame(4, &frameInfo, &resource);
 
     if (hr == DXGI_ERROR_WAIT_TIMEOUT || hr == DXGI_ERROR_NOT_CURRENTLY_AVAILABLE || FAILED(hr))
     {
