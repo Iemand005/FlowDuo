@@ -46,6 +46,7 @@ static DWORD g_hingeSampleIntervalMs = 1;
 static float g_effectResolutionScale = 0.7f;
 static UINT g_presentSyncInterval = 1;
 static bool g_highQualityBlur = true;
+static XMFLOAT3 g_headPosition = { 0.0f, 0.0f, -3.0f };
 
 static bool calibrated = false;
 
@@ -58,6 +59,8 @@ struct DisplayGeometry {
     XMVECTOR lidTopRight;
     XMVECTOR projectedTopLeft;
     XMVECTOR projectedTopRight;
+    XMFLOAT2 projectedTopLeftUv;
+    XMFLOAT2 projectedTopRightUv;
 };
 
 static XMVECTOR RotateAroundAxis(const XMVECTOR& vector, const XMVECTOR& axis, float angle) {
@@ -103,11 +106,11 @@ static bool BuildDisplayGeometry(float screenHeight, float hingeAngle, DisplayGe
     const XMVECTOR hingeAxis = XMVector3Normalize(XMVectorSubtract(virtualBottomRight, virtualBottomLeft));
     const XMVECTOR displayHeight = XMVector3Normalize(XMVectorSubtract(virtualTopLeft, virtualBottomLeft));
     const XMVECTOR lidHeight = XMVectorScale(
-        RotateAroundAxis(displayHeight, hingeAxis, -hingeAngle), screenHeight);
+        RotateAroundAxis(displayHeight, hingeAxis, hingeAngle), screenHeight);
     const XMVECTOR lidTopLeft = XMVectorAdd(virtualBottomLeft, lidHeight);
     const XMVECTOR lidTopRight = XMVectorAdd(virtualBottomRight, lidHeight);
 
-    const XMVECTOR head = XMVectorSet(0.0f, 0.0f, -3.0f, 1.0f);
+    const XMVECTOR head = XMLoadFloat3(&g_headPosition);
     const XMVECTOR virtualNormal = XMVector3Normalize(XMVector3Cross(
         XMVectorSubtract(virtualBottomRight, virtualBottomLeft),
         XMVectorSubtract(virtualTopLeft, virtualBottomLeft)));
@@ -115,6 +118,24 @@ static bool BuildDisplayGeometry(float screenHeight, float hingeAngle, DisplayGe
     XMVECTOR projectedTopRight;
     if (!RayPlaneIntersection(head, XMVectorSubtract(lidTopLeft, head), virtualBottomLeft, virtualNormal, &projectedTopLeft) ||
         !RayPlaneIntersection(head, XMVectorSubtract(lidTopRight, head), virtualBottomLeft, virtualNormal, &projectedTopRight))
+        return false;
+
+    const XMVECTOR virtualX = XMVector3Normalize(XMVectorSubtract(virtualBottomRight, virtualBottomLeft));
+    const XMVECTOR virtualY = XMVector3Normalize(XMVectorSubtract(virtualTopLeft, virtualBottomLeft));
+    const float virtualWidth = XMVectorGetX(XMVector3Length(XMVectorSubtract(virtualBottomRight, virtualBottomLeft)));
+    const float virtualHeight = XMVectorGetX(XMVector3Length(XMVectorSubtract(virtualTopLeft, virtualBottomLeft)));
+    const XMVECTOR projectedLeftOffset = XMVectorSubtract(projectedTopLeft, virtualBottomLeft);
+    const XMVECTOR projectedRightOffset = XMVectorSubtract(projectedTopRight, virtualBottomLeft);
+    const XMFLOAT2 projectedTopLeftUv = {
+        XMVectorGetX(XMVector3Dot(projectedLeftOffset, virtualX)) / virtualWidth,
+        XMVectorGetX(XMVector3Dot(projectedLeftOffset, virtualY)) / virtualHeight
+    };
+    const XMFLOAT2 projectedTopRightUv = {
+        XMVectorGetX(XMVector3Dot(projectedRightOffset, virtualX)) / virtualWidth,
+        XMVectorGetX(XMVector3Dot(projectedRightOffset, virtualY)) / virtualHeight
+    };
+    if (!isfinite(projectedTopLeftUv.x) || !isfinite(projectedTopLeftUv.y) ||
+        !isfinite(projectedTopRightUv.x) || !isfinite(projectedTopRightUv.y))
         return false;
 
     geometry->virtualBottomLeft = virtualBottomLeft;
@@ -125,6 +146,8 @@ static bool BuildDisplayGeometry(float screenHeight, float hingeAngle, DisplayGe
     geometry->lidTopRight = lidTopRight;
     geometry->projectedTopLeft = projectedTopLeft;
     geometry->projectedTopRight = projectedTopRight;
+    geometry->projectedTopLeftUv = projectedTopLeftUv;
+    geometry->projectedTopRightUv = projectedTopRightUv;
     return true;
 }
 
@@ -262,7 +285,7 @@ static bool PresentQuad(ID3D11DeviceContext* context) {
     context->RSSetViewports(1, &viewport);
     float aspect = (float)width / (float)height;
     float fov = 40.0f;
-    const XMVECTOR head = XMVectorSet(0.0f, 0.0f, -3.0f, 1.0f);
+    const XMVECTOR head = XMLoadFloat3(&g_headPosition);
     XMMATRIX view = XMMatrixLookAtLH(head, XMVectorZero(), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
     XMMATRIX proj = XMMatrixPerspectiveFovLH(XMConvertToRadians(fov), aspect, 0.1f, 100.0f);
     Vertex virtualVertices[4] = {};
