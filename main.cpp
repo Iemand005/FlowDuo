@@ -55,7 +55,7 @@ static DWORD g_hingeSampleIntervalMs = 8.33;
 
 static bool calibrated = false;
 
-static bool trueHide = true;
+static bool trueHide = false;
 
 static void Calibrate(HWND hwnd) {
     if (!g_hingeReader.IsReady()) return;
@@ -457,6 +457,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nShowCmd)
         GetSystemMetrics(SM_CYSCREEN),
         nullptr, nullptr, hInstance, nullptr);
 
+    SetLayeredWindowAttributes(hwnd, 0, 0, LWA_ALPHA);
     ShowWindow(hwnd, nShowCmd);
     bool excludeFromCapture = true;
     if (excludeFromCapture)
@@ -504,7 +505,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nShowCmd)
             continue;
         }
 
-        ToggleWindowVisible(hwnd, true);
         PresentQuad(context);
+        ToggleWindowVisible(hwnd, true);
     }
 }
