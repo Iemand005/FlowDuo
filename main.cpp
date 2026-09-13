@@ -37,8 +37,6 @@ static ComPtr<ID3D11PixelShader> g_blurQualityPS;
 static ComPtr<ID3D11PixelShader> g_blurPerformancePS;
 static ComPtr<ID3D11Buffer> g_fadeCB;
 static ComPtr<ID3D11Buffer> g_blurCB;
-static ComPtr<ID3D11Buffer> g_blurVB;
-static ComPtr<ID3D11Buffer> g_blurIB;
 
 static Graphics::RenderTarget g_sceneTarget;
 static Graphics::RenderTarget g_blurTarget;
@@ -158,31 +156,12 @@ static void CreateQuadPipeline(ID3D11Device* device)
 
     D3D11_BUFFER_DESC desc = {};
     desc.Usage = D3D11_USAGE_DEFAULT;
-    desc.ByteWidth = plane.vertexCount * sizeof(Vertex);
-    desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-    D3D11_SUBRESOURCE_DATA data = { plane.vertices, 0, 0 };
-    CheckHr(device->CreateBuffer(&desc, &data, &g_quadVB));
-
     desc.ByteWidth = plane.indexCount * sizeof(USHORT);
     desc.BindFlags = D3D11_BIND_INDEX_BUFFER;
-    data = { plane.indices, 0, 0 };
+    D3D11_SUBRESOURCE_DATA data = { plane.indices, 0, 0 };
     CheckHr(device->CreateBuffer(&desc, &data, &g_quadIB));
 
     DeletePlane(plane);
-
-    Plane blurPlane = CreatePlane(2.0f, 2.0f);
-
-    desc.ByteWidth = blurPlane.vertexCount * sizeof(Vertex);
-    desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-    data = { blurPlane.vertices, 0, 0 };
-    CheckHr(device->CreateBuffer(&desc, &data, &g_blurVB));
-
-    desc.ByteWidth = blurPlane.indexCount * sizeof(USHORT);
-    desc.BindFlags = D3D11_BIND_INDEX_BUFFER;
-    data = { blurPlane.indices, 0, 0 };
-    CheckHr(device->CreateBuffer(&desc, &data, &g_blurIB));
-
-    DeletePlane(blurPlane);
 
     desc.ByteWidth = sizeof(XMMATRIX);
     desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
@@ -383,9 +362,9 @@ static bool PresentQuad(ID3D11DeviceContext* context)
     XMMATRIX identity = XMMatrixIdentity();
     context->UpdateSubresource(g_transformCB.Get(), 0, nullptr, &identity, 0, 0);
 
-    vb = g_blurVB.Get();
+    vb = g_quadVB.Get();
     context->IASetVertexBuffers(0, 1, &vb, &stride, &offset);
-    context->IASetIndexBuffer(g_blurIB.Get(), DXGI_FORMAT_R16_UINT, 0);
+    context->IASetIndexBuffer(g_quadIB.Get(), DXGI_FORMAT_R16_UINT, 0);
 
     context->OMSetRenderTargets(1, g_blurTarget.renderTargetView.GetAddressOf(), nullptr);
     context->PSSetShader((g_highQualityBlur ? g_blurQualityPS : g_blurPerformancePS).Get(), nullptr, 0);
