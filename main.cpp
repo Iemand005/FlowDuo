@@ -60,14 +60,14 @@ static float g_blurRadiusMin = 0.0f;
 
 static void Calibrate(HWND hwnd) {
     if (!g_hingeReader.IsReady()) return;
-    g_calibOffset = g_hingeSmooth - 89.0f;
+    g_calibOffset = g_hingeSmooth - 89.0f;  
 }
 
 void ToggleWindowVisible(HWND hwnd, bool visible) {
     bool trueHide = true;
     if (trueHide) ShowWindow(hwnd, visible ? SW_SHOW : SW_HIDE);
     else {
-        SetLayeredWindowAttributes(hwnd, 0, visible ? 1 : 0, LWA_ALPHA);
+        SetLayeredWindowAttributes(hwnd, 0, visible ? 255 : 0, LWA_ALPHA);
     };
 }
 
