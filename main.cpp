@@ -35,7 +35,7 @@ static float g_blurFar = 3.0f;
 static float g_maxBlurPixels = 20.0f;
 static DWORD g_hingeSampleIntervalMs = 1;
 static UINT g_presentSyncInterval = 1;
-static XMFLOAT3 g_headPosition = { 0.0f, 1.0f, 3.0f };
+static XMFLOAT3 g_headPosition = { 0.0f, 0.0f, 3.0f };
 
 static bool calibrated = false;
 
