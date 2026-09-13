@@ -66,6 +66,10 @@ static void Calibrate(HWND hwnd) {
 }
 
 void ToggleWindowVisible(HWND hwnd) {
+    ToggleWindowVisible(hwnd, )
+}
+
+void ToggleWindowVisible(HWND hwnd, bool visible) {
     bool isVisible = IsWindowVisible(hwnd);
     ShowWindow(hwnd, isVisible ? SW_HIDE : SW_SHOW);
 }
@@ -239,6 +243,8 @@ static void UpdateTiltFromHinge()
     g_tiltDeg = g_hingeSmooth - 90.0f - g_calibOffset;
 
     g_tiltDeg = max(g_tiltDeg, 0);
+
+    if (g_tiltDeg > 0) ToggleWindowVisible(hwnd)
     //g_fadeEnd = g_tiltDeg / 90;
 
     g_blurRadius = g_tiltDeg;
