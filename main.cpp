@@ -64,7 +64,11 @@ static void Calibrate(HWND hwnd) {
 }
 
 void ToggleWindowVisible(HWND hwnd, bool visible) {
-    ShowWindow(hwnd, visible ? SW_SHOW : SW_HIDE);
+    bool trueHide = false;
+    if (trueHide) ShowWindow(hwnd, visible ? SW_SHOW : SW_HIDE);
+    else {
+        SetLayeredWindowAttributes(hwnd, 0, visible ? 1 : 0, LWA_ALPHA)
+    }
 }
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -352,8 +356,9 @@ static void EnsureSceneRT(ID3D11Device* device, UINT width, UINT height)
     g_sceneH = height;
 }
 
-static void PresentQuad(ID3D11Device* device, ID3D11DeviceContext* context, IDXGISwapChain* swapChain)
+static void PresentQuad(ID3D11Device* device, ID3D11DeviceContext* context)
 {
+    IDXGISwapChain* swapChain = g_graphics.GetSwapChain();
     ID3D11RenderTargetView* backRTV = g_graphics.GetRenderTargetView();
     if (!backRTV)
         return;
@@ -459,7 +464,7 @@ static void PresentQuad(ID3D11Device* device, ID3D11DeviceContext* context, IDXG
     context->DrawIndexed(6, 0, 0);
     context->PSSetShaderResources(0, 0, nullptr);
 
-    swapChain->Present(1, 0);
+    g_graphics.Present();
 }
 
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nShowCmd)
@@ -483,7 +488,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nShowCmd)
         nullptr, nullptr, hInstance, nullptr);*/
     BOOL borderless = true;
     HWND hwnd = CreateWindowExW(
-        WS_EX_TOPMOST | WS_EX_TOOLWINDOW, wc.lpszClassName, L"FlowDuo",
+        WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_LAYERED | WS_EX_TRANSPARENT, wc.lpszClassName, L"FlowDuo",
         borderless ? WS_POPUP : WS_OVERLAPPEDWINDOW,
         0, 0,
         GetSystemMetrics(SM_CXSCREEN),
@@ -528,7 +533,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nShowCmd)
 
          if (g_tiltDeg > 0) ToggleWindowVisible(hwnd, true);
         else ToggleWindowVisible(hwnd, false);
-        PresentQuad(device, context, swapChain);
+        PresentQuad(device, context);
         //Sleep(16);
     }
 }
