@@ -265,7 +265,7 @@ static bool PresentQuad(ID3D11DeviceContext* context) {
         (float)effectHeight,
         view,
         proj,
-        XMConvertToRadians(g_tiltDeg),
+        XMConvertToRadians(-g_tiltDeg),
         virtualVertices);
     context->UpdateSubresource(g_quadResources.vertexBuffer.Get(), 0, nullptr, virtualVertices, 0, 0);
 
