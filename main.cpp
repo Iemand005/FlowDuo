@@ -18,7 +18,7 @@ static HWND g_tiltSlider = nullptr;
 static float g_tiltDeg = 55.0f;
 
 static HingeSensorReader g_hingeReader;
-static float g_hingeSmooth = 5ng.0f;
+static float g_hingeSmooth = 5.0f;
 static float g_calibOffset = 0.0f;
 static DWORD g_lastHingeRead = 0;
 
