@@ -46,13 +46,13 @@ float4 main(VSOut i) : SV_TARGET
     float sampleV = 1.0 - v;
 
     float lidDisplayDistance = abs(dot(i.lidWorld - dispOrigin.xyz, dispNormal.xyz));
-    float radiusPx = lidDisplayDistance * blurMetrics.z;
+    float radiusPx = min(max(lidDisplayDistance * blurMetrics.z, 0.0), 64.0);
     uint textureWidth;
     uint textureHeight;
     displayTex.GetDimensions(textureWidth, textureHeight);
     float2 texel = radiusPx / float2(textureWidth, textureHeight);
     float4 color = displayTex.Sample(borderSamp, float2(u, sampleV));
-    if (radiusPx > 0.5)
+    if (radiusPx > 0.5 && radiusPx < 64.0)
     {
         float4 sum = color;
         const int taps = 4;
