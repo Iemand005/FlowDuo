@@ -525,7 +525,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nShowCmd)
 
         UpdateDesktopFrame(device, context);
 
-        UpdateTiltFromHinge();eep
+        UpdateTiltFromHinge();
 
          if (g_tiltDeg > 0) ToggleWindowVisible(hwnd, true);
         else ToggleWindowVisible(hwnd, false);
