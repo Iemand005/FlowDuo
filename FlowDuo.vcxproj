@@ -143,6 +143,7 @@
     </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="DesktopCapture.cpp" />
     <ClCompile Include="FlowX16HingeAngleReader\WinAccelerometerReader\AccelerometerReader.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="FlowX16HingeAngleReader\HingeSensorReader.cpp" />
@@ -153,6 +154,7 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="DesktopCapture.h" />
     <ClInclude Include="FlowX16HingeAngleReader\FlowX16HingeAngleReader.h" />
     <ClInclude Include="FlowX16HingeAngleReader\WinAccelerometerReader\AccelerometerReader.h" />
     <ClInclude Include="Resource.h" />

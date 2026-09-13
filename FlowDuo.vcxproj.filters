@@ -15,6 +15,9 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="DesktopCapture.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -26,6 +29,9 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="DesktopCapture.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="FlowX16HingeAngleReader\WinAccelerometerReader\AccelerometerReader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
