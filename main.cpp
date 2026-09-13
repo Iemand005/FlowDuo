@@ -55,7 +55,7 @@ static float g_fadeStart = 0.2f;
 static float g_fadeEnd = 1.0f;
 static float g_fadeStrength = 1.0f;
 float g_blurRadius = 20.0f;
-float g_blurRadiusMin = 1.0f;
+float g_blurRadiusMin = 0.0f;
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -233,6 +233,8 @@ static void UpdateTiltFromHinge()
 
     g_hingeSmooth += 0.15f * ((float)hinge - g_hingeSmooth);
     g_tiltDeg = g_hingeSmooth - 90.0f - g_calibOffset;
+
+    g_blurRadius = g_tiltDeg;
 
     SendMessageW(g_tiltSlider, TBM_SETPOS, TRUE, (LPARAM)(int)g_tiltDeg);
 }
