@@ -30,7 +30,7 @@ static Graphics::QuadResources g_quadResources;
 static float g_quadHalfHeight = 1.0f;
 
 static float g_fadeStrength = 0.0f;
-static float g_blurPixelsPerWorldUnit = 10.0f;
+static float g_blurPixelsPerWorldUnit = 60.0f;
 static DWORD g_hingeSampleIntervalMs = 1;
 static UINT g_presentSyncInterval = 1;
 static XMFLOAT3 g_headPosition = { 0.0f, 0.0f, 3.0f };
