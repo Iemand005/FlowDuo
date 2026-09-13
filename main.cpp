@@ -370,6 +370,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int) {
         UpdateTiltFromHinge();
 
         bool wantsVisible = g_tiltDeg > 0.0f;
+        wantsVisible = true;
         if (!wantsVisible)
         {
             ToggleWindowVisible(hwnd, false);
