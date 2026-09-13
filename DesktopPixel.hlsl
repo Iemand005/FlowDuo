@@ -52,7 +52,7 @@ float4 main(VSOut i) : SV_TARGET
     float4 color = displayTex.Sample(borderSamp, sampleUv);
     if (radiusPx > 0.5)
     {
-        const int kernelRadius = 4;
+        const int kernelRadius = 8;
         float sigma = max(radiusPx * 0.5, 0.75);
         float inverseTwoSigmaSquared = 0.5 / (sigma * sigma);
         float2 kernelStep = texel * (radiusPx / (float)kernelRadius);
