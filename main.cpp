@@ -230,7 +230,7 @@ static void UpdateTiltFromHinge()
         return;
     g_lastHingeRead = now;
 
-    int hinge = 0;
+    float hinge = 0;
     if (FAILED(g_hingeReader.GetHingeAngleFloat(&hinge)))
         return;
 
