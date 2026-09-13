@@ -43,8 +43,7 @@ float4 main(VSOut i) : SV_TARGET
     if (u < 0.0 || u > 1.0 || v < 0.0 || v > 1.0)
         return float4(0.0, 0.0, 0.0, 1.0);
 
-    if (blurMetrics.w > 0.5)
-        v = 1.0 - v;
+    float sampleV = 1.0 - v;
 
     float blurT = saturate((tHit - blurMetrics.x) / max(blurMetrics.y - blurMetrics.x, 0.0001));
     float radiusPx = blurT * blurMetrics.z;
@@ -52,7 +51,7 @@ float4 main(VSOut i) : SV_TARGET
     uint textureHeight;
     displayTex.GetDimensions(textureWidth, textureHeight);
     float2 texel = radiusPx / float2(textureWidth, textureHeight);
-    float4 color = displayTex.Sample(borderSamp, float2(u, v));
+    float4 color = displayTex.Sample(borderSamp, float2(u, sampleV));
     if (radiusPx > 0.5)
     {
         float4 sum = color;
@@ -61,14 +60,14 @@ float4 main(VSOut i) : SV_TARGET
         for (int tap = 1; tap <= taps; ++tap)
         {
             float weight = (float)tap / (float)taps;
-            sum += displayTex.Sample(borderSamp, float2(u, v) + float2(texel.x, 0.0) * weight);
-            sum += displayTex.Sample(borderSamp, float2(u, v) - float2(texel.x, 0.0) * weight);
-            sum += displayTex.Sample(borderSamp, float2(u, v) + float2(0.0, texel.y) * weight);
-            sum += displayTex.Sample(borderSamp, float2(u, v) - float2(0.0, texel.y) * weight);
+            sum += displayTex.Sample(borderSamp, float2(u, sampleV) + float2(texel.x, 0.0) * weight);
+            sum += displayTex.Sample(borderSamp, float2(u, sampleV) - float2(texel.x, 0.0) * weight);
+            sum += displayTex.Sample(borderSamp, float2(u, sampleV) + float2(0.0, texel.y) * weight);
+            sum += displayTex.Sample(borderSamp, float2(u, sampleV) - float2(0.0, texel.y) * weight);
         }
         color = sum / (1.0 + 4.0 * taps);
     }
 
-    float fade = 1.0 - effectMetrics.x * smoothstep(0.2, 1.0, v);
+    float fade = 1.0 - effectMetrics.x * smoothstep(0.2, 1.0, sampleV);
     return float4(color.rgb * fade, color.a);
 }

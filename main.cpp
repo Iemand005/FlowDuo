@@ -30,7 +30,6 @@ static Graphics::QuadResources g_quadResources;
 static float g_quadHalfHeight = 1.0f;
 
 static float g_fadeStrength = 0.0f;
-static bool g_flipV = false;
 static float g_blurNear = 0.0f;
 static float g_blurFar = 3.0f;
 static float g_maxBlurPixels = 20.0f;
@@ -110,7 +109,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         return 0;
     case WM_KEYDOWN:
         if (wParam == VK_SPACE) Calibrate();
-        if (wParam == 'F') g_flipV = !g_flipV;
         return 0;
     case WM_MOUSEACTIVATE:
         return MA_NOACTIVATE;
@@ -214,7 +212,7 @@ static bool PresentQuad(ID3D11DeviceContext* context) {
     XMStoreFloat4(&sceneConstants.lidTL, geometry.lidTopLeft);
     XMStoreFloat4(&sceneConstants.lidTR, geometry.lidTopRight);
     sceneConstants.displayMetrics = { 2.0f, 2.0f * g_quadHalfHeight, 0.0f, 0.0f };
-    sceneConstants.blurMetrics = { g_blurNear, g_blurFar, g_maxBlurPixels, g_flipV ? 1.0f : 0.0f };
+    sceneConstants.blurMetrics = { g_blurNear, g_blurFar, g_maxBlurPixels, 0.0f };
     sceneConstants.effectMetrics = { g_fadeStrength, 0.0f, 0.0f, 0.0f };
     context->UpdateSubresource(g_quadResources.transformBuffer.Get(), 0, nullptr, &sceneConstants, 0, 0);
     context->VSSetConstantBuffers(0, 1, g_quadResources.transformBuffer.GetAddressOf());
