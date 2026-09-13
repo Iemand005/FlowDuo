@@ -30,7 +30,7 @@ static Graphics::QuadResources g_quadResources;
 static float g_quadHalfHeight = 1.0f;
 
 static float g_fadeStrength = 0.0f;
-static bool g_flipV = true;
+static bool g_flipV = false;
 static float g_blurNear = 0.0f;
 static float g_blurFar = 3.0f;
 static float g_maxBlurPixels = 20.0f;
