@@ -386,7 +386,7 @@ static void PresentQuad(ID3D11Device* device, ID3D11DeviceContext* context, IDXG
         XMMatrixTranslation(0.0f, -g_quadHalfHeight, 0.0f) *
         XMMatrixTranslation(0.0f, -topY, 0.0f) *               // move top to origin
         XMMatrixRotationX(XMConvertToRadians(g_tiltDeg / 2)) *
-        XMMatrixTranslation(0.0f, topY, 0.0f);                 // move back
+        XMMatrixTranslation(0.0f, topY, 0.0f);                 // move backpi
     XMMATRIX view = XMMatrixLookAtLH(XMVectorSet(0.0f, 0.0f, -3.0f, 1.0f),
                                      XMVectorZero(), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
     XMMATRIX proj = XMMatrixPerspectiveFovLH(XMConvertToRadians(60.0f), aspect, 0.1f, 100.0f);
