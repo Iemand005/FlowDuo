@@ -240,7 +240,7 @@ static void UpdateTiltFromHinge()
 
     g_blurRadius = g_tiltDeg * g_blurRadiusMultiplier;
 
-    g_fadeStrength = min(g_tiltDeg / 40, 2);
+    g_fadeStrength = min(g_tiltDeg / 40, 1);
 
     SendMessageW(g_tiltSlider, TBM_SETPOS, TRUE, (LPARAM)(int)g_tiltDeg);
 }
