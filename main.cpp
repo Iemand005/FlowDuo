@@ -538,9 +538,6 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int)
         }
 
         bool presented = PresentQuad(context);
-        if (presented)
-        {
-            ToggleWindowVisible(hwnd, true);
-        }
+        if (presented) ToggleWindowVisible(hwnd, true);
     }
 }
