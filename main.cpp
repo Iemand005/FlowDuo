@@ -70,19 +70,22 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             g_graphics.Resize(hwnd);
         return 0;
     case WM_KEYDOWN:
-        if (wParam == VK_SPACE && g_hingeReader.IsReady())
-        {
-            g_calibOffset = g_hingeSmooth - 90.0f;
-            WCHAR buf[64] = {};
-            wsprintfW(buf, L"FlowDuo - hinge %.0f deg (space=calibrate)", g_hingeSmooth);
-            SetWindowTextW(hwnd, buf);
-        }
+        if (wParam == VK_SPACE)
+            Calibrate(hwnd);
         return 0;
     case WM_DESTROY:
         PostQuitMessage(0);
         return 0;
     }
     return DefWindowProc(hwnd, msg, wParam, lParam);
+}
+
+static void Calibrate(HWND hwnd) {
+    if (!g_hingeReader.IsReady()) return;
+    g_calibOffset = g_hingeSmooth - 90.0f;
+    WCHAR buf[64] = {};
+    wsprintfW(buf, L"FlowDuo - hinge %.0f deg (space=calibrate)", g_hingeSmooth);
+    SetWindowTextW(hwnd, buf);
 }
 
 static void CheckHr(HRESULT hr)
