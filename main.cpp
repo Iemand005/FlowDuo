@@ -240,7 +240,7 @@ static void UpdateTiltFromHinge()
 
     g_blurRadius = g_tiltDeg * g_blurRadiusMultiplier;
 
-    g_fadeStrength = g_tiltDeg / 40;
+    g_fadeStrength = min(g_tiltDeg / 40, 2);
 
     SendMessageW(g_tiltSlider, TBM_SETPOS, TRUE, (LPARAM)(int)g_tiltDeg);
 }
@@ -384,7 +384,7 @@ static void PresentQuad(ID3D11Device* device, ID3D11DeviceContext* context, IDXG
     XMMATRIX world =
         XMMatrixTranslation(0.0f, g_quadHalfHeight, 0.0f) *
         XMMatrixScaling(scale, scaleY, scale) *
-        XMMatrixRotationX(XMConvertToRadians(g_tiltDeg / 2)) *
+        XMMatrixRotationX(XMConvertToRadians(g_tiltDeg)) *
         XMMatrixTranslation(0.0f, -g_quadHalfHeight, 0.0f) *
         XMMatrixTranslation(0.0f, -(scale - 1.0f) * g_quadHalfHeight, 0.0f);
     XMMATRIX view = XMMatrixLookAtLH(XMVectorSet(0.0f, 0.0f, -3.0f, 1.0f),
