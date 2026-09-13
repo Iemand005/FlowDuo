@@ -246,11 +246,10 @@ static void UpdateTiltFromHinge()
     g_tiltDeg = g_hingeSmooth - 90.0f - g_calibOffset;
 
     g_tiltDeg = max(g_tiltDeg, 0);
-    //g_fadeEnd = g_tiltDeg / 90;
 
     g_blurRadius = g_tiltDeg * g_blurRadiusMultiplier;
 
-    g_fadeStrength = min(g_tiltDeg / 40, 1);
+    g_fadeStrength = min(g_tiltDeg / 60, 1);
 }
 
 static void InitDesktopCapture(ID3D11Device* device)
