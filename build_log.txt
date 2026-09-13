@@ -1,0 +1,55 @@
+MSBuild version 18.10.1-1.26427.6+3cd27c13e for .NET Framework
+Build started 13/09/2026 23:31:29.
+
+     1>Project "J:\FlowDuo\FlowDuo.vcxproj" on node 1 (default targets).
+     1>Project "J:\FlowDuo\FlowDuo.vcxproj" (1) is building "J:\FlowDuo\LibCubeRenderer\LibCubeRenderer.vcxproj" (2) on node 1 (default targets).
+     2>PrepareForBuild:
+         Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+       InitializeBuildStatus:
+         Creating "LibCubeRenderer\x64\Release\LibCubeRenderer.tlog\unsuccessfulbuild" because "AlwaysCreate" was specified.
+         Touching "LibCubeRenderer\x64\Release\LibCubeRenderer.tlog\unsuccessfulbuild".
+       FxCompile:
+         All outputs are up-to-date.
+         All outputs are up-to-date.
+       VcpkgTripletSelection:
+         Using triplet "x64-windows" from "C:\Users\Lasse\source\repos\vcpkg\installed\x64-windows\"
+         Using normalized configuration "Release"
+       ClCompile:
+         All outputs are up-to-date.
+         All outputs are up-to-date.
+       Lib:
+         All outputs are up-to-date.
+         LibCubeRenderer.vcxproj -> J:\FlowDuo\LibCubeRenderer\x64\Release\LibCubeRenderer.lib
+       FinalizeBuildStatus:
+         Deleting file "LibCubeRenderer\x64\Release\LibCubeRenderer.tlog\unsuccessfulbuild".
+         Touching "LibCubeRenderer\x64\Release\LibCubeRenderer.tlog\LibCubeRenderer.lastbuildstate".
+     2>Done Building Project "J:\FlowDuo\LibCubeRenderer\LibCubeRenderer.vcxproj" (default targets).
+     1>PrepareForBuild:
+         Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+       InitializeBuildStatus:
+         Creating "FlowDuo\x64\Release\FlowDuo.tlog\unsuccessfulbuild" because "AlwaysCreate" was specified.
+         Touching "FlowDuo\x64\Release\FlowDuo.tlog\unsuccessfulbuild".
+       ComputeStdModulesCompileInputs:
+         Reading library manifest file 'C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\modules\modules.json' which provides data for library 'microsoft/STL'.
+         Adding module source 'C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\modules\std.ixx' from library 'microsoft/STL' to be built with this project.
+         Adding module source 'C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\modules\std.compat.ixx' from library 'microsoft/STL' to be built with this project.
+       VcpkgTripletSelection:
+         Using triplet "x64-windows" from "C:\Users\Lasse\source\repos\vcpkg\installed\x64-windows\"
+         Using normalized configuration "Release"
+       ClCompile:
+         All outputs are up-to-date.
+       ResourceCompile:
+         All outputs are up-to-date.
+       Link:
+         All outputs are up-to-date.
+         FlowDuo.vcxproj -> J:\FlowDuo\x64\Release\FlowDuo.exe
+       FinalizeBuildStatus:
+         Deleting file "FlowDuo\x64\Release\FlowDuo.tlog\unsuccessfulbuild".
+         Touching "FlowDuo\x64\Release\FlowDuo.tlog\FlowDuo.lastbuildstate".
+     1>Done Building Project "J:\FlowDuo\FlowDuo.vcxproj" (default targets).
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:01.16
