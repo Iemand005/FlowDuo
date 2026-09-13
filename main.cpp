@@ -52,7 +52,9 @@ static float g_blurRadius = 20.0f;
 static float g_blurRadiusMultiplier = 3.0f;
 static float g_blurRadiusMin = 0.0f;
 
-bool calibrated = false;
+static bool calibrated = false;
+
+static bool trueHide = true;
 
 static void Calibrate(HWND hwnd) {
     if (!g_hingeReader.IsReady()) return;
@@ -68,7 +70,15 @@ void ToggleWindowVisible(HWND hwnd, bool visible) {
         return;
 
     g_windowVisible = visible;
-    SetLayeredWindowAttributes(hwnd, 0, visible ? 255 : 0, LWA_ALPHA);
+    if (trueHide) ShowWindow(hwnd, visible ? SW_SHOW : SW_HIDE);
+    else SetLayeredWindowAttributes(hwnd, 0, visible ? 255 : 0, LWA_ALPHA);
+}
+void ToggleWindowVisible(HWND hwnd, bool visible) {
+    bool trueHide = true;
+    if (trueHide) ShowWindow(hwnd, visible ? SW_SHOW : SW_HIDE);
+    else {
+        SetLayeredWindowAttributes(hwnd, 0, visible ? 255 : 0, LWA_ALPHA);
+    };
 }
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
