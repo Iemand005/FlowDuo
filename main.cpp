@@ -375,7 +375,7 @@ static void PresentQuad(ID3D11Device* device, ID3D11DeviceContext* context, IDXG
     float visibleW = visibleH * aspect;
     float scale = max(visibleW / 2.0f, visibleH / (2.0f * g_quadHalfHeight));
 
-    float scaleY = scale * 1.2;
+    float scaleY = scale * 1.4;
 
     XMMATRIX world = XMMatrixScaling(scale, scaleY, scale) *
                      XMMatrixTranslation(0.0f, scale * g_quadHalfHeight, 0.0f) *
