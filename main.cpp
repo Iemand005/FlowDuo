@@ -50,10 +50,6 @@ static bool g_highQualityBlur = true;
 
 static bool calibrated = false;
 
-static XMVECTOR TransformPoint(const XMVECTOR& point, const XMMATRIX& transform) {
-    return XMVector3TransformCoord(point, transform);
-}
-
 static XMVECTOR GetPhysicalTop(float tiltRadians, const XMVECTOR& hinge, const XMVECTOR& top) {
     return XMVectorAdd(hinge, XMVector3TransformNormal(
         XMVectorSubtract(top, hinge), XMMatrixRotationX(-tiltRadians)));
@@ -271,7 +267,6 @@ static bool PresentQuad(ID3D11DeviceContext* context) {
     context->RSSetViewports(1, &viewport);
     float aspect = (float)width / (float)height;
     float fov = 40.0f;
-    const float tiltRadians = XMConvertToRadians(g_tiltDeg);
     XMMATRIX view = XMMatrixLookAtLH(XMVectorSet(0.0f, 0.0f, -3.0f, 1.0f), XMVectorZero(), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
     XMMATRIX proj = XMMatrixPerspectiveFovLH(XMConvertToRadians(fov), aspect, 0.1f, 100.0f);
     Vertex virtualVertices[4] = {};
@@ -282,6 +277,7 @@ static bool PresentQuad(ID3D11DeviceContext* context) {
 
 #ifdef _DEBUG
     if (g_tiltDeg > 0.001f) {
+        const float tiltRadians = XMConvertToRadians(g_tiltDeg);
         const XMVECTOR physicalTopLeft = GetPhysicalTop(
             tiltRadians, GetVertexPosition(virtualVertices[0]), GetVertexPosition(virtualVertices[3]));
         const XMVECTOR physicalTopRight = GetPhysicalTop(
