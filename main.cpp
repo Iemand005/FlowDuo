@@ -235,6 +235,7 @@ static void UpdateTiltFromHinge()
     g_tiltDeg = g_hingeSmooth - 90.0f - g_calibOffset;
 
     g_tiltDeg = max(g_tiltDeg, 0);
+    g_fadeStart = g_tiltDeg / 90;
 
     g_blurRadius = g_tiltDeg;
 
