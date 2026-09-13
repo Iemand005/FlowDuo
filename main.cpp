@@ -14,7 +14,6 @@ using namespace Microsoft::WRL;
 static Graphics g_graphics;
 static bool g_graphicsReady = false;
 
-static HWND g_tiltSlider = nullptr;
 static float g_tiltDeg = 0.0f;
 
 static HingeSensorReader g_hingeReader;
@@ -252,8 +251,6 @@ static void UpdateTiltFromHinge()
     g_blurRadius = g_tiltDeg * g_blurRadiusMultiplier;
 
     g_fadeStrength = min(g_tiltDeg / 40, 1);
-
-    SendMessageW(g_tiltSlider, TBM_SETPOS, TRUE, (LPARAM)(int)g_tiltDeg);
 }
 
 static void InitDesktopCapture(ID3D11Device* device)
