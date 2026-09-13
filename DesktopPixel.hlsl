@@ -68,6 +68,6 @@ float4 main(VSOut i) : SV_TARGET
         color = sum / (1.0 + 4.0 * taps);
     }
 
-    float fade = 1.0 - effectMetrics.x * smoothstep(0.2, 1.0, sampleV);
+    float fade = 1.0 - effectMetrics.x * smoothstep(0.2, 1.0, v);
     return float4(color.rgb * fade, color.a);
 }
