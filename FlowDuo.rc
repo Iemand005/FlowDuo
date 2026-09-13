@@ -1,0 +1,6 @@
+#include "Resource.h"
+
+IDR_QUAD_VERTEX RCDATA "QuadVertex.hlsl"
+IDR_DESKTOP_PIXEL RCDATA "DesktopPixel.hlsl"
+IDR_BLUR_QUALITY RCDATA "BlurQuality.hlsl"
+IDR_BLUR_PERFORMANCE RCDATA "BlurPerformance.hlsl"

@@ -1,7 +1,7 @@
 #include "CubeRenderer.h"
 #include "HingeSensorReader.h"
+#include "Resource.h"
 
-#include <cstring>
 #include <stdexcept>
 #include <cmath>
 
@@ -113,89 +113,35 @@ static void CheckHr(HRESULT hr)
         throw std::runtime_error("HRESULT failed");
 }
 
-static ComPtr<ID3DBlob> CompileShader(const char* source, const char* target)
+static ComPtr<ID3DBlob> CompileShader(const void* source, SIZE_T sourceSize, const char* target)
 {
     ComPtr<ID3DBlob> blob;
     ComPtr<ID3DBlob> error;
-    CheckHr(D3DCompile(source, strlen(source), nullptr, nullptr, nullptr,
+    CheckHr(D3DCompile(source, sourceSize, nullptr, nullptr, nullptr,
                       "main", target, 0, 0, &blob, &error));
     return blob;
 }
 
+static ComPtr<ID3DBlob> CompileShaderResource(int resourceId, const char* target)
+{
+    HMODULE module = GetModuleHandleW(nullptr);
+    HRSRC resource = FindResourceW(module, MAKEINTRESOURCEW(resourceId), RT_RCDATA);
+    CheckHr(resource ? S_OK : HRESULT_FROM_WIN32(GetLastError()));
+
+    HGLOBAL data = LoadResource(module, resource);
+    CheckHr(data ? S_OK : HRESULT_FROM_WIN32(GetLastError()));
+
+    DWORD size = SizeofResource(module, resource);
+    CheckHr(size ? S_OK : HRESULT_FROM_WIN32(GetLastError()));
+    return CompileShader(LockResource(data), size, target);
+}
+
 static void CreateQuadPipeline(ID3D11Device* device)
 {
-    const char* vsSrc =
-        "cbuffer TransformCB : register(b0) { float4x4 transform; };\n"
-        "struct VSIn { float3 pos : POSITION; float2 uv : TEXCOORD0; };\n"
-        "struct VSOut { float4 pos : SV_POSITION; float2 uv : TEXCOORD0; };\n"
-        "VSOut main(VSIn i)\n"
-        "{\n"
-        "    VSOut o;\n"
-        "    o.pos = mul(float4(i.pos, 1.0), transform);\n"
-        "    o.uv = i.uv;\n"
-        "    return o;\n"
-        "}\n";
-
-    const char* psSource =
-        "Texture2D desktopTex : register(t0);\n"
-        "SamplerState samp : register(s0);\n"
-        "cbuffer SceneCB : register(b1) { float4 fadeParams; };\n"
-        "struct VSOut { float4 pos : SV_POSITION; float2 uv : TEXCOORD0; };\n"
-        "float4 main(VSOut i) : SV_TARGET\n"
-        "{\n"
-        "    float4 c = desktopTex.Sample(samp, i.uv);\n"
-        "    float fade = 1.0 - fadeParams.z * smoothstep(fadeParams.x, fadeParams.y, 1.0 - i.uv.y);\n"
-        "    return float4(c.rgb * fade, c.a);\n"
-        "}\n";
-
-    const char* blurQualitySrc =
-        "Texture2D sceneTex : register(t0);\n"
-        "SamplerState samp : register(s0);\n"
-        "cbuffer BlurCB : register(b1)\n"
-        "{ float4 texelDir; float4 ranges; };\n"
-        "struct VSOut { float4 pos : SV_POSITION; float2 uv : TEXCOORD0; };\n"
-        "float4 main(VSOut i) : SV_TARGET\n"
-        "{\n"
-        "    float2 texel = float2(texelDir.x, texelDir.y);\n"
-        "    float2 dir = lerp(float2(texel.x, 0.0), float2(0.0, texel.y), texelDir.z);\n"
-        "    float sigma = max(0.001, lerp(ranges.x, ranges.y, 1.0 - i.uv.y));\n"
-        "    int halfK = min(32, (int)(sigma * 2.5 + 0.5));\n"
-        "    float wsum = 0.0;\n"
-        "    float4 c = 0.0;\n"
-        "    [loop]\n"
-        "    for (int k = -halfK; k <= halfK; ++k)\n"
-        "    {\n"
-        "        float w = exp(-((float)k * (float)k) / (2.0 * sigma * sigma));\n"
-        "        c += sceneTex.Sample(samp, i.uv + dir * (float)k) * w;\n"
-        "        wsum += w;\n"
-        "    }\n"
-        "    return c / wsum;\n"
-        "}\n";
-
-    const char* blurPerformanceSrc =
-        "Texture2D sceneTex : register(t0);\n"
-        "SamplerState samp : register(s0);\n"
-        "cbuffer BlurCB : register(b1)\n"
-        "{ float4 texelDir; float4 ranges; };\n"
-        "struct VSOut { float4 pos : SV_POSITION; float2 uv : TEXCOORD0; };\n"
-        "float4 main(VSOut i) : SV_TARGET\n"
-        "{\n"
-        "    float2 texel = float2(texelDir.x, texelDir.y);\n"
-        "    float2 dir = lerp(float2(texel.x, 0.0), float2(0.0, texel.y), texelDir.z);\n"
-        "    float radius = max(0.5, lerp(ranges.x, ranges.y, 1.0 - i.uv.y));\n"
-        "    float2 stepDir = dir * radius * 0.25;\n"
-        "    float4 c = sceneTex.Sample(samp, i.uv) * 0.227027;\n"
-        "    c += (sceneTex.Sample(samp, i.uv + stepDir) + sceneTex.Sample(samp, i.uv - stepDir)) * 0.1945946;\n"
-        "    c += (sceneTex.Sample(samp, i.uv + stepDir * 2.0) + sceneTex.Sample(samp, i.uv - stepDir * 2.0)) * 0.1216216;\n"
-        "    c += (sceneTex.Sample(samp, i.uv + stepDir * 3.0) + sceneTex.Sample(samp, i.uv - stepDir * 3.0)) * 0.054054;\n"
-        "    c += (sceneTex.Sample(samp, i.uv + stepDir * 4.0) + sceneTex.Sample(samp, i.uv - stepDir * 4.0)) * 0.016216;\n"
-        "    return c;\n"
-        "}\n";
-
-    auto vsBlob = CompileShader(vsSrc, "vs_5_0");
-    auto psBlob = CompileShader(psSource, "ps_5_0");
-    auto blurQualityBlob = CompileShader(blurQualitySrc, "ps_5_0");
-    auto blurPerformanceBlob = CompileShader(blurPerformanceSrc, "ps_5_0");
+    auto vsBlob = CompileShaderResource(IDR_QUAD_VERTEX, "vs_5_0");
+    auto psBlob = CompileShaderResource(IDR_DESKTOP_PIXEL, "ps_5_0");
+    auto blurQualityBlob = CompileShaderResource(IDR_BLUR_QUALITY, "ps_5_0");
+    auto blurPerformanceBlob = CompileShaderResource(IDR_BLUR_PERFORMANCE, "ps_5_0");
 
     CheckHr(device->CreateVertexShader(vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), nullptr, &g_quadVS));
     CheckHr(device->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(), nullptr, &g_quadPS));

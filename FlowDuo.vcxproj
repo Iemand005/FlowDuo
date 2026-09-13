@@ -155,6 +155,10 @@
   <ItemGroup>
     <ClInclude Include="FlowX16HingeAngleReader\FlowX16HingeAngleReader.h" />
     <ClInclude Include="FlowX16HingeAngleReader\WinAccelerometerReader\AccelerometerReader.h" />
+    <ClInclude Include="Resource.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="FlowDuo.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
