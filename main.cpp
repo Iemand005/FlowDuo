@@ -49,6 +49,7 @@ static float g_blurRadius = 20.0f;
 static float g_blurRadiusMultiplier = 2.0f;
 static DWORD g_hingeSampleIntervalMs = 1;
 static float g_effectResolutionScale = 0.7f;
+static UINT g_presentSyncInterval = 1;
 
 static bool calibrated = false;
 
@@ -155,18 +156,14 @@ static void CreateQuadPipeline(ID3D11Device* device)
         "{\n"
         "    float2 texel = float2(texelDir.x, texelDir.y);\n"
         "    float2 dir = lerp(float2(texel.x, 0.0), float2(0.0, texel.y), texelDir.z);\n"
-        "    float sigma = max(0.001, lerp(ranges.x, ranges.y, 1.0 - i.uv.y));\n"
-        "    int halfK = min(32, (int)(sigma * 2.5 + 0.5));\n"
-        "    float wsum = 0.0;\n"
-        "    float4 c = 0.0;\n"
-        "    [loop]\n"
-        "    for (int k = -halfK; k <= halfK; ++k)\n"
-        "    {\n"
-        "        float w = exp(-((float)k * (float)k) / (2.0 * sigma * sigma));\n"
-        "        c += sceneTex.Sample(samp, i.uv + dir * (float)k) * w;\n"
-        "        wsum += w;\n"
-        "    }\n"
-        "    return c / wsum;\n"
+        "    float radius = max(0.5, lerp(ranges.x, ranges.y, 1.0 - i.uv.y));\n"
+        "    float2 stepDir = dir * radius * 0.25;\n"
+        "    float4 c = sceneTex.Sample(samp, i.uv) * 0.227027;\n"
+        "    c += (sceneTex.Sample(samp, i.uv + stepDir) + sceneTex.Sample(samp, i.uv - stepDir)) * 0.1945946;\n"
+        "    c += (sceneTex.Sample(samp, i.uv + stepDir * 2.0) + sceneTex.Sample(samp, i.uv - stepDir * 2.0)) * 0.1216216;\n"
+        "    c += (sceneTex.Sample(samp, i.uv + stepDir * 3.0) + sceneTex.Sample(samp, i.uv - stepDir * 3.0)) * 0.054054;\n"
+        "    c += (sceneTex.Sample(samp, i.uv + stepDir * 4.0) + sceneTex.Sample(samp, i.uv - stepDir * 4.0)) * 0.016216;\n"
+        "    return c;\n"
         "}\n";
 
     auto vsBlob = CompileShader(vsSrc, "vs_5_0");
@@ -447,7 +444,7 @@ static bool PresentQuad(ID3D11DeviceContext* context)
     context->DrawIndexed(6, 0, 0);
     context->PSSetShaderResources(0, 0, nullptr);
 
-    g_graphics.Present();
+    g_graphics.Present(g_presentSyncInterval);
     return true;
 }
 
