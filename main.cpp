@@ -33,7 +33,8 @@ static float g_fadeStrength = 0.0f;
 static float g_blurPixelsPerWorldUnit = 100.0f;
 static DWORD g_hingeSampleIntervalMs = 1;
 static UINT g_presentSyncInterval = 1;
-static XMFLOAT3 g_headPosition = { 0.0f, 0.0f, 3.0f };
+static float g_headEyeHeight = 1.25f;
+static float g_headDistance = 3.0f;
 
 static bool calibrated = false;
 
@@ -200,7 +201,7 @@ static bool PresentQuad(ID3D11DeviceContext* context) {
         XMFLOAT4 blurMetrics;
         XMFLOAT4 effectMetrics;
     } sceneConstants = {};
-    sceneConstants.headPos = { g_headPosition.x, g_headPosition.y, g_headPosition.z, 0.0f };
+    sceneConstants.headPos = { 0.0f, g_headEyeHeight, g_headDistance, 0.0f };
     sceneConstants.dispOrigin = { -1.0f, 0.0f, 0.0f, 0.0f };
     sceneConstants.dispRightAxis = { 1.0f, 0.0f, 0.0f, 0.0f };
     sceneConstants.dispUpAxis = { 0.0f, 1.0f, 0.0f, 0.0f };
