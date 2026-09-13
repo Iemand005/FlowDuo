@@ -52,10 +52,25 @@ static float g_blurRadius = 20.0f;
 static float g_blurRadiusMultiplier = 2.0f;
 static float g_blurRadiusMin = 0.0f;
 static DWORD g_hingeSampleIntervalMs = 8.33;
+static float g_effectResolutionScale = 0.5f;
 
 static bool calibrated = false;
 
 static bool trueHide = false;
+
+static void ResetDesktopCapture()
+{
+    ID3D11DeviceContext* context = g_graphics.GetContext();
+    if (context)
+    {
+        ID3D11ShaderResourceView* nullSRV = nullptr;
+        context->PSSetShaderResources(0, 1, &nullSRV);
+    }
+
+    g_duplication.Reset();
+    g_desktopSRV.Reset();
+    g_desktopTexture.Reset();
+}
 
 static void Calibrate(HWND hwnd) {
     if (!g_hingeReader.IsReady()) return;
@@ -71,6 +86,8 @@ void ToggleWindowVisible(HWND hwnd, bool visible) {
         return;
 
     g_windowVisible = visible;
+    if (!visible)
+        ResetDesktopCapture();
     SetLayeredWindowAttributes(hwnd, 0, visible ? 255 : 0, LWA_ALPHA);
     if (trueHide)
         ShowWindow(hwnd, visible ? SW_SHOW : SW_HIDE);
@@ -341,10 +358,12 @@ static bool PresentQuad(ID3D11DeviceContext* context)
     if (width == 0 || height == 0)
         return false;
 
-    g_graphics.EnsureRenderTarget(g_sceneTarget, width, height);
-    g_graphics.EnsureRenderTarget(g_blurTarget, width, height);
+    UINT effectWidth = max(1u, (UINT)(width * g_effectResolutionScale));
+    UINT effectHeight = max(1u, (UINT)(height * g_effectResolutionScale));
+    g_graphics.EnsureRenderTarget(g_sceneTarget, effectWidth, effectHeight);
+    g_graphics.EnsureRenderTarget(g_blurTarget, effectWidth, effectHeight);
 
-    D3D11_VIEWPORT viewport = { 0, 0, (float)width, (float)height, 0.0f, 1.0f };
+    D3D11_VIEWPORT viewport = { 0, 0, (float)effectWidth, (float)effectHeight, 0.0f, 1.0f };
     context->RSSetViewports(1, &viewport);
     context->RSSetState(g_quadRaster.Get());
     
@@ -410,10 +429,10 @@ static bool PresentQuad(ID3D11DeviceContext* context)
     context->OMSetRenderTargets(1, g_blurTarget.renderTargetView.GetAddressOf(), nullptr);
     context->PSSetShader(g_blurPS.Get(), nullptr, 0);
 
-    const float texelX = 1.0f / (float)width;
-    const float texelY = 1.0f / (float)height;
+    const float texelX = 1.0f / (float)effectWidth;
+    const float texelY = 1.0f / (float)effectHeight;
 
-    const XMFLOAT4 blurRanges(g_blurRadiusMin, g_blurRadius, 0.0f, 0.0f);
+    const XMFLOAT4 blurRanges(g_blurRadiusMin, g_blurRadius * g_effectResolutionScale, 0.0f, 0.0f);
 
     const XMFLOAT4 blurH(texelX, texelY, 0.0f, 0.0f);
     const XMFLOAT4 blurH2 = blurRanges;
@@ -425,6 +444,8 @@ static bool PresentQuad(ID3D11DeviceContext* context)
     context->DrawIndexed(6, 0, 0);
     context->PSSetShaderResources(0, 0, nullptr);
 
+    viewport = { 0, 0, (float)width, (float)height, 0.0f, 1.0f };
+    context->RSSetViewports(1, &viewport);
     context->OMSetRenderTargets(1, &backRTV, nullptr);
     context->ClearRenderTargetView(backRTV, clear);
 
