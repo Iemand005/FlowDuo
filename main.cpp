@@ -269,13 +269,13 @@ static void InitDesktopCapture(ID3D11Device* device)
     CheckHr(output1->DuplicateOutput(device, &g_duplication));
 }
 
-static void UpdateDesktopFrame(ID3D11Device* device, ID3D11DeviceContext* context)
+static bool UpdateDesktopFrame(ID3D11Device* device, ID3D11DeviceContext* context)
 {
     if (!g_duplication)
     {
         InitDesktopCapture(device);
         if (!g_duplication)
-            return;
+            return false;
     }
 
     DXGI_OUTDUPL_FRAME_INFO frameInfo = {};
@@ -286,9 +286,10 @@ static void UpdateDesktopFrame(ID3D11Device* device, ID3D11DeviceContext* contex
     {
         if (hr == DXGI_ERROR_ACCESS_LOST)
             g_duplication.Reset();
-        return;
+        return false;
     }
 
+    bool copiedFrame = false;
     if (resource)
     {
         ComPtr<ID3D11Texture2D> desktopImage;
@@ -319,10 +320,12 @@ static void UpdateDesktopFrame(ID3D11Device* device, ID3D11DeviceContext* contex
             }
 
             context->CopyResource(g_desktopTexture.Get(), desktopImage.Get());
+            copiedFrame = true;
         }
     }
 
     g_duplication->ReleaseFrame();
+    return copiedFrame;
 }
 
 static void PresentQuad(ID3D11DeviceContext* context)
@@ -486,14 +489,22 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nShowCmd)
 
         UpdateTiltFromHinge();
 
-        ToggleWindowVisible(hwnd, g_tiltDeg > 0.0f);
-        if (!g_windowVisible)
+        bool wantsVisible = g_tiltDeg > 0.0f;
+        if (!wantsVisible)
         {
+            ToggleWindowVisible(hwnd, false);
             Sleep(50);
             continue;
         }
 
-        UpdateDesktopFrame(device, context);
+        bool hasFreshFrame = UpdateDesktopFrame(device, context);
+        if (!g_windowVisible && !hasFreshFrame)
+        {
+            Sleep(1);
+            continue;
+        }
+
+        ToggleWindowVisible(hwnd, true);
         PresentQuad(context);
     }
 }
