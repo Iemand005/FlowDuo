@@ -188,8 +188,7 @@ static bool InitDesktopCapture(ID3D11Device* device)
 
 static bool UpdateDesktopFrame(ID3D11Device* device, ID3D11DeviceContext* context)
 {
-    if (!g_duplication)
-        if (!InitDesktopCapture(device)) return false;
+    if (!g_duplication && !InitDesktopCapture(device)) return false;
 
     DXGI_OUTDUPL_FRAME_INFO frameInfo = {};
     ComPtr<IDXGIResource> resource;
