@@ -84,24 +84,11 @@ static void CheckHr(HRESULT hr) {
     if (FAILED(hr)) throw std::runtime_error("HRESULT failed");
 }
 
-static ComPtr<ID3DBlob> CompileShaderResource(int resourceId, const char* target) {
-    HMODULE module = GetModuleHandleW(nullptr);
-    HRSRC resource = FindResourceW(module, MAKEINTRESOURCEW(resourceId), RT_RCDATA);
-    CheckHr(resource ? S_OK : HRESULT_FROM_WIN32(GetLastError()));
-
-    HGLOBAL data = LoadResource(module, resource);
-    CheckHr(data ? S_OK : HRESULT_FROM_WIN32(GetLastError()));
-
-    DWORD size = SizeofResource(module, resource);
-    CheckHr(size ? S_OK : HRESULT_FROM_WIN32(GetLastError()));
-    return g_graphics.CompileShader(LockResource(data), size, target);
-}
-
 static void CreateQuadPipeline(ID3D11Device* device) {
-    auto vsBlob = CompileShaderResource(IDR_QUAD_VERTEX, "vs_5_0");
-    auto psBlob = CompileShaderResource(IDR_DESKTOP_PIXEL, "ps_5_0");
-    auto blurQualityBlob = CompileShaderResource(IDR_BLUR_QUALITY, "ps_5_0");
-    auto blurPerformanceBlob = CompileShaderResource(IDR_BLUR_PERFORMANCE, "ps_5_0");
+    auto vsBlob = g_graphics.CompileShaderResource(IDR_QUAD_VERTEX, "vs_5_0");
+    auto psBlob = g_graphics.CompileShaderResource(IDR_DESKTOP_PIXEL, "ps_5_0");
+    auto blurQualityBlob = g_graphics.CompileShaderResource(IDR_BLUR_QUALITY, "ps_5_0");
+    auto blurPerformanceBlob = g_graphics.CompileShaderResource(IDR_BLUR_PERFORMANCE, "ps_5_0");
 
     CheckHr(device->CreateVertexShader(vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), nullptr, &g_quadVS));
     CheckHr(device->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(), nullptr, &g_quadPS));
