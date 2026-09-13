@@ -52,7 +52,7 @@ float4 main(VSOut i) : SV_TARGET
     float4 color = displayTex.Sample(borderSamp, sampleUv);
     if (radiusPx > 0.5)
     {
-        static const int SAMPLE_COUNT = 28;
+        static const int SAMPLE_COUNT = 64;
         static const float GOLDEN_ANGLE = 2.39996323; // radians (~137.5 degrees)
 
         float2 blurStep = texel * radiusPx;
